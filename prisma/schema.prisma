@@ -1,0 +1,49 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Analysis {
+  id                 String   @id @default(cuid())
+  createdAt          DateTime @default(now())
+  siteUrl            String
+  competitorUrl      String?
+  keyword            String?
+  status             String   @default("pending")
+  progress           Int      @default(0)
+  progressLabel      String?
+  seoComparisonScore Int?
+  seoHygieneScore    Int?
+  hipaaRiskLevel     String?
+  seoComparisonData  String?
+  seoHygieneData     String?
+  hipaaData          String?
+  pagesScraped       String?
+  error              String?
+  isPublic           Boolean  @default(false)
+  loomUrl            String?
+  overviewTitle      String?
+  overviewSubtitle   String?
+  seoSummary         String?
+  keywordData        String?
+  pageSpeedData      String?
+  site               Site?    @relation(fields: [siteId], references: [id])
+  siteId             String?
+}
+
+model Setting {
+  key   String @id
+  value String
+}
+
+model Site {
+  id        String     @id @default(cuid())
+  url       String     @unique
+  label     String?
+  createdAt DateTime   @default(now())
+  analyses  Analysis[]
+}
