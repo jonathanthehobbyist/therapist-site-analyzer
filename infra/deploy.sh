@@ -2,13 +2,13 @@
 set -e
 
 cd /home/ec2-user/app
+git pull origin main
 
 # Load env vars for Prisma
 set -a
 source .env.local
 set +a
 
-git pull origin main
 npm ci
 npx prisma migrate deploy
 npx prisma generate
