@@ -35,12 +35,9 @@ sudo nginx -t && sudo systemctl reload nginx
 pm2 startup systemd -u ec2-user --hp /home/ec2-user
 sudo env PATH=$PATH:/usr/bin pm2 startup systemd -u ec2-user --hp /home/ec2-user
 
-# Set up S3 backup cron (runs at 2am daily)
-chmod +x /home/ec2-user/app/infra/backup.sh
-(crontab -l 2>/dev/null; echo "0 2 * * * /home/ec2-user/app/infra/backup.sh") | crontab -
-
 echo "=== Setup complete! ==="
 echo "Next steps:"
 echo "1. Clone your repo to /home/ec2-user/app"
-echo "2. Copy .env.production to /home/ec2-user/app/.env.local"
+echo "2. Create .env.local with DATABASE_URL pointing to your RDS instance:"
+echo "   DATABASE_URL=postgresql://USER:PASSWORD@your-rds-host.amazonaws.com:5432/therapist_analyzer"
 echo "3. Run /home/ec2-user/app/infra/deploy.sh"

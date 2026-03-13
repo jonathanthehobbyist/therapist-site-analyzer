@@ -7,8 +7,3 @@ export const prisma = globalForPrisma.prisma ?? new PrismaClient();
 if (process.env.NODE_ENV !== 'production') {
   globalForPrisma.prisma = prisma;
 }
-
-// Enable WAL mode for concurrent read/write (critical for polling pattern)
-prisma.$executeRawUnsafe('PRAGMA journal_mode=WAL;').catch(() => {
-  // Silently ignore if already set
-});
