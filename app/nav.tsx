@@ -1,11 +1,17 @@
 'use client';
 
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 
 export default function Nav() {
   const pathname = usePathname();
+  const router = useRouter();
 
-  if (pathname.startsWith('/share/')) return null;
+  if (pathname.startsWith('/share/') || pathname === '/login') return null;
+
+  async function handleLogout() {
+    await fetch('/api/auth/logout', { method: 'POST' });
+    router.push('/login');
+  }
 
   return (
     <nav className="bg-white px-6 py-3 fixed top-0 left-0 right-0 z-50" style={{ boxShadow: '0 2px 8px -2px rgba(0,0,0,0.08)' }}>
@@ -41,6 +47,12 @@ export default function Nav() {
             </svg>
             New Analysis
           </a>
+          <button
+            onClick={handleLogout}
+            className="text-xs text-gray-400 hover:text-gray-600 transition-colors"
+          >
+            Logout
+          </button>
         </div>
       </div>
     </nav>
