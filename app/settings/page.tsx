@@ -169,6 +169,13 @@ function ColorPicker({ value, onChange }: { value: string; onChange: (hex: strin
   );
 }
 
+const TEMPLATE_SECTIONS = [
+  { key: 'seo', label: 'SEO', titleKey: 'template_seo_title', descKey: 'template_seo_description' },
+  { key: 'pagespeed', label: 'Page Speed', titleKey: 'template_pagespeed_title', descKey: 'template_pagespeed_description' },
+  { key: 'hipaa', label: 'HIPAA', titleKey: 'template_hipaa_title', descKey: 'template_hipaa_description' },
+  { key: 'keywords', label: 'Keywords', titleKey: 'template_keywords_title', descKey: 'template_keywords_description' },
+];
+
 export default function SettingsPage() {
   const [settings, setSettings] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
@@ -180,6 +187,9 @@ export default function SettingsPage() {
 
   const [thresholdSaving, setThresholdSaving] = useState(false);
   const [thresholdSaved, setThresholdSaved] = useState(false);
+
+  const [templateSaving, setTemplateSaving] = useState(false);
+  const [templateSaved, setTemplateSaved] = useState(false);
 
   async function saveThresholds() {
     setThresholdSaving(true);
@@ -197,6 +207,23 @@ export default function SettingsPage() {
     setThresholdSaving(false);
     setThresholdSaved(true);
     setTimeout(() => setThresholdSaved(false), 2000);
+  }
+
+  async function saveTemplates() {
+    setTemplateSaving(true);
+    const updates: Record<string, string> = {};
+    for (const section of TEMPLATE_SECTIONS) {
+      updates[section.titleKey] = settings[section.titleKey] || '';
+      updates[section.descKey] = settings[section.descKey] || '';
+    }
+    await fetch('/api/settings', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(updates),
+    });
+    setTemplateSaving(false);
+    setTemplateSaved(true);
+    setTimeout(() => setTemplateSaved(false), 2000);
   }
 
   async function saveTheme() {
@@ -257,6 +284,52 @@ export default function SettingsPage() {
                     </div>
                   </div>
                 ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Custom Templates */}
+      <div className="bg-white rounded-lg shadow-sm overflow-hidden mb-8">
+        <div className="px-5 py-3.5 bg-gray-50 border-b border-gray-100 flex items-center justify-between">
+          <div>
+            <h2 className="text-sm font-semibold text-brand-charcoal">Custom Templates</h2>
+            <p className="text-xs text-gray-400 mt-0.5">Starting text when you switch a section to &ldquo;Custom&rdquo; mode on an analysis</p>
+          </div>
+          <button
+            onClick={saveTemplates}
+            disabled={templateSaving}
+            className="px-4 py-2 text-xs font-medium bg-brand-charcoal-light text-white rounded-md hover:bg-brand-charcoal transition-colors disabled:opacity-50 cursor-pointer"
+          >
+            {templateSaved ? 'Saved!' : templateSaving ? 'Saving...' : 'Save Templates'}
+          </button>
+        </div>
+        <div className="p-5 space-y-6">
+          {TEMPLATE_SECTIONS.map((section) => (
+            <div key={section.key}>
+              <h3 className="text-sm font-semibold text-brand-charcoal mb-3">{section.label}</h3>
+              <div className="space-y-2">
+                <div>
+                  <label className="text-xs font-medium text-gray-600 mb-1 block">Title</label>
+                  <input
+                    type="text"
+                    value={settings[section.titleKey] || ''}
+                    onChange={(e) => setSettings(prev => ({ ...prev, [section.titleKey]: e.target.value }))}
+                    placeholder={`e.g. Your ${section.label} Results`}
+                    className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-sky"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-gray-600 mb-1 block">Description</label>
+                  <textarea
+                    value={settings[section.descKey] || ''}
+                    onChange={(e) => setSettings(prev => ({ ...prev, [section.descKey]: e.target.value }))}
+                    rows={3}
+                    placeholder="Template paragraph that pre-fills when you switch to Custom mode..."
+                    className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-sky resize-y"
+                  />
+                </div>
               </div>
             </div>
           ))}

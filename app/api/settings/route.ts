@@ -30,6 +30,15 @@ const DEFAULTS: Record<string, string> = {
   pagespeed_mobile_score_subtitle: 'Google Lighthouse performance score for mobile.',
   pagespeed_filmstrip_title: 'Loading Timeline',
   pagespeed_filmstrip_subtitle: 'How your site loads over time on mobile — each frame shows what a visitor sees.',
+  // Custom templates (pre-fill when switching to Custom mode)
+  template_seo_title: '',
+  template_seo_description: '',
+  template_pagespeed_title: '',
+  template_pagespeed_description: '',
+  template_hipaa_title: '',
+  template_hipaa_description: '',
+  template_keywords_title: '',
+  template_keywords_description: '',
   // Score thresholds
   threshold_score_good: '90',
   threshold_score_warn: '50',
@@ -76,7 +85,7 @@ export async function PATCH(req: NextRequest) {
   const updates: { key: string; value: string }[] = [];
 
   for (const [key, value] of Object.entries(body)) {
-    if (typeof value === 'string' && (key in DEFAULTS || key.startsWith('finding_') || key.startsWith('seo_') || key.startsWith('metric_') || key.startsWith('hipaa_') || key.startsWith('threshold_'))) {
+    if (typeof value === 'string' && (key in DEFAULTS || key.startsWith('finding_') || key.startsWith('seo_') || key.startsWith('metric_') || key.startsWith('hipaa_') || key.startsWith('threshold_') || key.startsWith('template_'))) {
       updates.push({ key, value });
     }
   }

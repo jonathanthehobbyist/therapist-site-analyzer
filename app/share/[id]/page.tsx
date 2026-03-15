@@ -91,16 +91,85 @@ export default function SharePage() {
   const [analysis, setAnalysis] = useState<Analysis | null>(null);
   const [activeTab, setActiveTab] = useState<Tab>('SEO Hygiene');
   const [error, setError] = useState('');
+  const [needsPasscode, setNeedsPasscode] = useState(false);
+  const [passcode, setPasscode] = useState('');
+  const [passcodeError, setPasscodeError] = useState('');
 
-  useEffect(() => {
+  function loadAnalysis() {
     fetch(`/api/share/${id}`)
-      .then((res) => {
+      .then(async (res) => {
+        if (res.status === 403) {
+          const data = await res.json();
+          if (data.requiresPasscode) {
+            setNeedsPasscode(true);
+            return;
+          }
+        }
         if (!res.ok) throw new Error('Report not found or not public');
         return res.json();
       })
-      .then(setAnalysis)
+      .then((data) => { if (data) setAnalysis(data); })
       .catch((err) => setError(err.message));
-  }, [id]);
+  }
+
+  useEffect(() => { loadAnalysis(); }, [id]);
+
+  async function submitPasscode(e: React.FormEvent) {
+    e.preventDefault();
+    setPasscodeError('');
+    const res = await fetch(`/api/share/${id}/verify`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ passcode }),
+    });
+    if (!res.ok) {
+      setPasscodeError('Incorrect passcode');
+      return;
+    }
+    setNeedsPasscode(false);
+    loadAnalysis();
+  }
+
+  if (needsPasscode) {
+    return (
+      <div className="min-h-screen bg-brand-bg flex items-center justify-center px-6">
+        <div className="w-full max-w-sm">
+          <div className="text-center mb-8">
+            <div className="flex items-center justify-center gap-0.5 mb-3">
+              <span className="w-2.5 h-2.5 rounded-full bg-brand-sage" />
+              <span className="w-2.5 h-2.5 rounded-full bg-brand-sky" />
+              <span className="w-2.5 h-2.5 rounded-full bg-brand-gold" />
+            </div>
+            <h1 className="text-xl font-bold text-brand-charcoal">This report is protected</h1>
+            <p className="text-sm text-gray-500 mt-1">Enter the passcode to view this analysis.</p>
+          </div>
+          <form onSubmit={submitPasscode} className="bg-white rounded-lg shadow-sm p-8 space-y-5">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">Passcode</label>
+              <input
+                type="text"
+                value={passcode}
+                onChange={(e) => setPasscode(e.target.value)}
+                autoFocus
+                className="w-full border border-gray-200 rounded-lg px-4 py-3 text-sm text-center tracking-widest focus:ring-2 focus:ring-brand-sky focus:border-brand-sky outline-none transition-shadow"
+              />
+            </div>
+            {passcodeError && (
+              <div className="bg-brand-rose-light/30 text-brand-rose-dark text-sm rounded-md px-4 py-3">
+                {passcodeError}
+              </div>
+            )}
+            <button
+              type="submit"
+              className="w-full bg-brand-charcoal-light text-white font-medium py-3 rounded-md hover:bg-brand-charcoal transition-colors text-sm"
+            >
+              View Report
+            </button>
+          </form>
+        </div>
+      </div>
+    );
+  }
 
   if (error) {
     return (
@@ -128,10 +197,35 @@ export default function SharePage() {
     setActiveTab('SEO Hygiene');
   }
 
+  function handleShareLogout() {
+    document.cookie = `share-${id}=; path=/; max-age=0`;
+    window.location.reload();
+  }
+
   return (
     <div className="min-h-screen bg-brand-bg">
+      {/* Nav bar */}
+      <nav className="bg-white px-6 py-3 fixed top-0 left-0 right-0 z-50" style={{ boxShadow: '0 2px 8px -2px rgba(0,0,0,0.08)' }}>
+        <div className="flex items-center justify-between">
+          <span className="flex items-center gap-2 text-sm font-bold tracking-tight">
+            <span className="flex items-center gap-0.5">
+              <span className="w-2.5 h-2.5 rounded-full bg-brand-sage" />
+              <span className="w-2.5 h-2.5 rounded-full bg-brand-sky" />
+              <span className="w-2.5 h-2.5 rounded-full bg-brand-gold" />
+            </span>
+            <span className="text-brand-charcoal">Practice Persona</span>
+          </span>
+          <button
+            onClick={handleShareLogout}
+            className="text-xs text-gray-400 hover:text-gray-600 transition-colors cursor-pointer"
+          >
+            Logout
+          </button>
+        </div>
+      </nav>
+
       {/* Header with practice name */}
-      <div className="bg-white shadow-sm px-8 py-5">
+      <div className="bg-white shadow-sm px-8 py-5 mt-10">
         <div className="max-w-6xl mx-auto flex items-center justify-between">
           <div>
             <h1 className="text-lg font-bold text-brand-charcoal-light">{practiceName}</h1>
@@ -251,7 +345,7 @@ export default function SharePage() {
         </div>
 
         <p className="text-center text-xs text-gray-400 mt-10">
-          Generated by Therapist Analyzer
+          Generated by Practice Persona
         </p>
       </div>
     </div>

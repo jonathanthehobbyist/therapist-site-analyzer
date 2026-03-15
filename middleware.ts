@@ -16,6 +16,9 @@ export async function middleware(req: NextRequest) {
 
   const token = req.cookies.get('session-token')?.value;
   if (!token) {
+    if (pathname.startsWith('/api/')) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
     return NextResponse.redirect(new URL('/login', req.url));
   }
 
@@ -24,6 +27,9 @@ export async function middleware(req: NextRequest) {
     await jwtVerify(token, secret);
     return NextResponse.next();
   } catch {
+    if (pathname.startsWith('/api/')) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
     return NextResponse.redirect(new URL('/login', req.url));
   }
 }

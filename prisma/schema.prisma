@@ -25,9 +25,18 @@ model Analysis {
   pagesScraped       String?
   error              String?
   isPublic           Boolean  @default(false)
+  sharePasscode      String?
   loomUrl            String?
   overviewTitle      String?
   overviewSubtitle   String?
+  customSeoTitle     String?
+  customSeoDesc      String?
+  customPagespeedTitle String?
+  customPagespeedDesc  String?
+  customHipaaTitle   String?
+  customHipaaDesc    String?
+  customKeywordsTitle String?
+  customKeywordsDesc  String?
   seoSummary         String?
   keywordData        String?
   pageSpeedData      String?

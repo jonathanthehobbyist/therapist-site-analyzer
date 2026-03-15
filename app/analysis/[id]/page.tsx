@@ -43,9 +43,18 @@ interface Analysis {
   pagesScraped: string[] | null;
   error: string | null;
   isPublic: boolean;
+  sharePasscode: string | null;
   loomUrl: string | null;
   overviewTitle: string | null;
   overviewSubtitle: string | null;
+  customSeoTitle: string | null;
+  customSeoDesc: string | null;
+  customPagespeedTitle: string | null;
+  customPagespeedDesc: string | null;
+  customHipaaTitle: string | null;
+  customHipaaDesc: string | null;
+  customKeywordsTitle: string | null;
+  customKeywordsDesc: string | null;
   seoSummary: string | null;
   keywordData: KeywordData | null;
   pageSpeedData: FullPageSpeedData | null;
@@ -377,7 +386,7 @@ export default function AnalysisPage() {
                 />
               </div>
               <div className="flex items-center justify-between">
-                <ShareToggle analysisId={id} isPublic={analysis.isPublic} onToggle={setIsShared} />
+                <ShareToggle analysisId={id} isPublic={analysis.isPublic} passcode={analysis.sharePasscode} onToggle={setIsShared} />
                 <button
                   onClick={rerunAnalysis}
                   disabled={rerunning}
@@ -409,6 +418,14 @@ export default function AnalysisPage() {
                 settingKey="seo_description"
                 description={sectionDescs.seo_description || ''}
                 onSave={(updates) => setSectionDescs(prev => ({ ...prev, ...updates }))}
+                analysisId={id}
+                customTitle={analysis.customSeoTitle}
+                customDesc={analysis.customSeoDesc}
+                customTitleField="customSeoTitle"
+                customDescField="customSeoDesc"
+                onCustomSave={(t, d) => setAnalysis(prev => prev ? { ...prev, customSeoTitle: t, customSeoDesc: d } : prev)}
+                templateTitle={sectionDescs.template_seo_title}
+                templateDesc={sectionDescs.template_seo_description}
               />
 
               {/* Comparison score card */}
@@ -455,6 +472,14 @@ export default function AnalysisPage() {
                 settingKey="pagespeed_description"
                 description={sectionDescs.pagespeed_description || ''}
                 onSave={(updates) => setSectionDescs(prev => ({ ...prev, ...updates }))}
+                analysisId={id}
+                customTitle={analysis.customPagespeedTitle}
+                customDesc={analysis.customPagespeedDesc}
+                customTitleField="customPagespeedTitle"
+                customDescField="customPagespeedDesc"
+                onCustomSave={(t, d) => setAnalysis(prev => prev ? { ...prev, customPagespeedTitle: t, customPagespeedDesc: d } : prev)}
+                templateTitle={sectionDescs.template_pagespeed_title}
+                templateDesc={sectionDescs.template_pagespeed_description}
               />
               {analysis.pageSpeedData && <PageSpeedTab data={analysis.pageSpeedData} sectionDescs={sectionDescs} onSaveDescs={(updates) => setSectionDescs(prev => ({ ...prev, ...updates }))} />}
             </div>
@@ -472,6 +497,14 @@ export default function AnalysisPage() {
                 settingKey="hipaa_description"
                 description={sectionDescs.hipaa_description || ''}
                 onSave={(updates) => setSectionDescs(prev => ({ ...prev, ...updates }))}
+                analysisId={id}
+                customTitle={analysis.customHipaaTitle}
+                customDesc={analysis.customHipaaDesc}
+                customTitleField="customHipaaTitle"
+                customDescField="customHipaaDesc"
+                onCustomSave={(t, d) => setAnalysis(prev => prev ? { ...prev, customHipaaTitle: t, customHipaaDesc: d } : prev)}
+                templateTitle={sectionDescs.template_hipaa_title}
+                templateDesc={sectionDescs.template_hipaa_description}
               />
               {analysis.hipaaData && <HipaaTab data={analysis.hipaaData} sectionDescs={sectionDescs} onSaveDescs={(updates) => setSectionDescs(prev => ({ ...prev, ...updates }))} />}
             </div>
@@ -490,6 +523,14 @@ export default function AnalysisPage() {
                 settingKey="keywords_description"
                 description={sectionDescs.keywords_description || ''}
                 onSave={(updates) => setSectionDescs(prev => ({ ...prev, ...updates }))}
+                analysisId={id}
+                customTitle={analysis.customKeywordsTitle}
+                customDesc={analysis.customKeywordsDesc}
+                customTitleField="customKeywordsTitle"
+                customDescField="customKeywordsDesc"
+                onCustomSave={(t, d) => setAnalysis(prev => prev ? { ...prev, customKeywordsTitle: t, customKeywordsDesc: d } : prev)}
+                templateTitle={sectionDescs.template_keywords_title}
+                templateDesc={sectionDescs.template_keywords_description}
               />
               {analysis.keywordData && <KeywordsTab data={analysis.keywordData} sectionDescs={sectionDescs} />}
             </div>
@@ -764,6 +805,14 @@ function SectionHero({
   settingKey,
   description,
   onSave,
+  analysisId,
+  customTitle,
+  customDesc,
+  customTitleField,
+  customDescField,
+  onCustomSave,
+  templateTitle,
+  templateDesc,
 }: {
   score?: number | null;
   riskLevel?: string | null;
@@ -778,29 +827,90 @@ function SectionHero({
   settingKey: string;
   description: string;
   onSave: (updates: Record<string, string>) => void;
+  analysisId: string;
+  customTitle: string | null;
+  customDesc: string | null;
+  customTitleField: string;
+  customDescField: string;
+  onCustomSave: (title: string | null, desc: string | null) => void;
+  templateTitle?: string;
+  templateDesc?: string;
 }) {
+  const isCustom = customDesc !== null;
+  const [mode, setMode] = useState<'default' | 'custom'>(isCustom ? 'custom' : 'default');
   const [editing, setEditing] = useState(false);
-  const [editTitle, setEditTitle] = useState(title);
-  const [text, setText] = useState(description);
+  const [editTitle, setEditTitle] = useState((mode === 'custom' && customTitle !== null ? customTitle : title) || '');
+  const [text, setText] = useState((mode === 'custom' && customDesc !== null ? customDesc : description) || '');
   const [editScoreLabel, setEditScoreLabel] = useState(scoreLabel);
   const [editScoreSubtext, setEditScoreSubtext] = useState(scoreSubtext);
 
+  // Sync mode when custom data loads from API
+  useEffect(() => {
+    if (customDesc !== null && mode === 'default') setMode('custom');
+  }, [customDesc]);
+
   // Sync when data loads from API
-  useEffect(() => { setText(description); }, [description]);
-  useEffect(() => { setEditTitle(title); }, [title]);
+  useEffect(() => {
+    if (mode === 'default') { setText(description || ''); setEditTitle(title || ''); }
+  }, [description, title, mode]);
+  useEffect(() => {
+    if (mode === 'custom') {
+      setText((customDesc !== null ? customDesc : (templateDesc || description)) || '');
+      setEditTitle((customTitle !== null ? customTitle : (templateTitle || title)) || '');
+    }
+  }, [customDesc, customTitle, mode, description, title, templateDesc, templateTitle]);
   useEffect(() => { setEditScoreLabel(scoreLabel); }, [scoreLabel]);
   useEffect(() => { setEditScoreSubtext(scoreSubtext); }, [scoreSubtext]);
 
+  function handleModeSwitch(newMode: 'default' | 'custom') {
+    if (newMode === mode) return;
+    setEditing(false);
+    setMode(newMode);
+    if (newMode === 'custom') {
+      // Pre-populate with custom values, then template, then defaults
+      setText((customDesc !== null ? customDesc : (templateDesc || description)) || '');
+      setEditTitle((customTitle !== null ? customTitle : (templateTitle || title)) || '');
+    } else {
+      setText(description || '');
+      setEditTitle(title || '');
+    }
+  }
+
   async function save() {
-    const updates: Record<string, string> = { [settingKey]: text, [titleKey]: editTitle };
-    if (scoreLabelKey) updates[scoreLabelKey] = editScoreLabel;
-    if (scoreSubtextKey) updates[scoreSubtextKey] = editScoreSubtext;
-    await fetch('/api/settings', {
+    if (mode === 'default') {
+      const updates: Record<string, string> = { [settingKey]: text, [titleKey]: editTitle };
+      if (scoreLabelKey) updates[scoreLabelKey] = editScoreLabel;
+      if (scoreSubtextKey) updates[scoreSubtextKey] = editScoreSubtext;
+      await fetch('/api/settings', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updates),
+      });
+      onSave(updates);
+    } else {
+      // Save custom per-analysis
+      const body: Record<string, string> = { [customTitleField]: editTitle, [customDescField]: text };
+      await fetch(`/api/analysis/${analysisId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      onCustomSave(editTitle, text);
+    }
+    setEditing(false);
+  }
+
+  async function revertToDefault() {
+    // Clear custom fields
+    await fetch(`/api/analysis/${analysisId}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(updates),
+      body: JSON.stringify({ [customTitleField]: null, [customDescField]: null }),
     });
-    onSave(updates);
+    onCustomSave(null, null);
+    setMode('default');
+    setText(description);
+    setEditTitle(title);
     setEditing(false);
   }
 
@@ -844,14 +954,27 @@ function SectionHero({
           ) : (
             <h2 className="text-lg font-semibold text-brand-charcoal">{editTitle}</h2>
           )}
-          {!editing && (
-            <button
-              onClick={() => setEditing(true)}
-              className="text-xs text-gray-400 hover:text-gray-600 transition-colors cursor-pointer shrink-0"
-            >
-              Edit
-            </button>
-          )}
+          <div className="flex items-center gap-2 shrink-0">
+            {/* Default / Custom toggle */}
+            <div className="flex rounded-md border border-gray-200 text-[11px] overflow-hidden">
+              <button
+                onClick={() => handleModeSwitch('default')}
+                className={`px-2.5 py-1 transition-colors ${mode === 'default' ? 'bg-brand-charcoal text-white' : 'text-gray-400 hover:text-gray-600'}`}
+              >Default</button>
+              <button
+                onClick={() => handleModeSwitch('custom')}
+                className={`px-2.5 py-1 transition-colors ${mode === 'custom' ? 'bg-brand-charcoal text-white' : 'text-gray-400 hover:text-gray-600'}`}
+              >Custom</button>
+            </div>
+            {!editing && (
+              <button
+                onClick={() => setEditing(true)}
+                className="text-xs text-gray-400 hover:text-gray-600 transition-colors cursor-pointer"
+              >
+                Edit
+              </button>
+            )}
+          </div>
         </div>
         {editing ? (
           <div>
@@ -861,19 +984,29 @@ function SectionHero({
               rows={4}
               className="w-full text-sm text-gray-700 border border-gray-200 rounded-lg p-4 focus:outline-none focus:ring-2 focus:ring-brand-sky resize-y"
             />
-            <div className="flex gap-2 mt-2 justify-end">
-              <button
-                onClick={() => { setText(description); setEditTitle(title); setEditing(false); }}
-                className="px-3 py-1.5 text-xs text-gray-400 hover:text-gray-600"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={save}
-                className="px-4 py-2 text-xs font-medium bg-brand-charcoal-light text-white rounded-md hover:bg-brand-charcoal transition-colors"
-              >
-                Save
-              </button>
+            <div className="flex items-center justify-between mt-2">
+              <span className="text-[11px] text-gray-400">
+                {mode === 'default' ? 'Saves across all analyses' : 'Saves to this analysis only'}
+              </span>
+              <div className="flex gap-2">
+                {mode === 'custom' && customDesc !== null && (
+                  <button onClick={revertToDefault} className="px-3 py-1.5 text-xs text-brand-red hover:text-red-700">
+                    Revert to Default
+                  </button>
+                )}
+                <button
+                  onClick={() => { setText(mode === 'custom' ? (customDesc !== null ? customDesc : (templateDesc || description)) : description); setEditTitle(mode === 'custom' ? (customTitle !== null ? customTitle : (templateTitle || title)) : title); setEditing(false); }}
+                  className="px-3 py-1.5 text-xs text-gray-400 hover:text-gray-600"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={save}
+                  className="px-4 py-2 text-xs font-medium bg-brand-charcoal-light text-white rounded-md hover:bg-brand-charcoal transition-colors"
+                >
+                  Save
+                </button>
+              </div>
             </div>
           </div>
         ) : (
@@ -1031,58 +1164,149 @@ function SeoHygieneTab({ data, sectionDescs, onSaveDescs }: { data: SeoHygieneDa
   );
 }
 
-function ShareToggle({ analysisId, isPublic: initialPublic, onToggle }: { analysisId: string; isPublic: boolean; onToggle?: (isPublic: boolean) => void }) {
+function generatePasscode(): string {
+  const chars = '0123456789';
+  let code = '';
+  for (let i = 0; i < 6; i++) code += chars[Math.floor(Math.random() * chars.length)];
+  return code;
+}
+
+function ShareToggle({ analysisId, isPublic: initialPublic, passcode: initialPasscode, onToggle }: { analysisId: string; isPublic: boolean; passcode: string | null; onToggle?: (isPublic: boolean) => void }) {
   const [isPublic, setIsPublic] = useState(initialPublic);
   const [copied, setCopied] = useState(false);
+  const [passcode, setPasscode] = useState(initialPasscode || '');
+  const [passcodeSaved, setPasscodeSaved] = useState(!!initialPasscode);
+  const [editingPasscode, setEditingPasscode] = useState(false);
 
   async function toggle() {
     const next = !isPublic;
+    let newPasscode = passcode;
+    if (next && !passcodeSaved) {
+      // Auto-generate passcode when enabling share
+      newPasscode = generatePasscode();
+      setPasscode(newPasscode);
+    }
     await fetch(`/api/share/${analysisId}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ isPublic: next }),
+      body: JSON.stringify({
+        isPublic: next,
+        sharePasscode: next ? newPasscode : passcode || null,
+      }),
     });
+    if (next && !passcodeSaved) setPasscodeSaved(true);
     setIsPublic(next);
     onToggle?.(next);
   }
 
   function copyLink() {
     const url = `${window.location.origin}/share/${analysisId}`;
-    navigator.clipboard.writeText(url);
+    const text = passcodeSaved
+      ? `Link: ${url}\nPasscode: ${passcode}`
+      : `Link: ${url}`;
+    navigator.clipboard.writeText(text);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   }
 
+  async function savePasscode() {
+    await fetch(`/api/share/${analysisId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ isPublic, sharePasscode: passcode.trim() || null }),
+    });
+    setPasscodeSaved(!!passcode.trim());
+    setEditingPasscode(false);
+  }
+
+  async function removePasscode() {
+    await fetch(`/api/share/${analysisId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ isPublic, sharePasscode: null }),
+    });
+    setPasscode('');
+    setPasscodeSaved(false);
+  }
+
   return (
-    <div className="flex items-center gap-4">
-      <label className="flex items-center gap-2 cursor-pointer">
-        <span className="text-xs text-gray-500">Share</span>
-        <button
-          onClick={toggle}
-          role="switch"
-          aria-checked={isPublic}
-          className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${
-            isPublic ? 'bg-brand-sage' : 'bg-gray-300'
-          }`}
-        >
-          <span
-            className={`inline-block h-3.5 w-3.5 rounded-full bg-white transition-transform ${
-              isPublic ? 'translate-x-4.5' : 'translate-x-0.5'
+    <div className="space-y-2.5">
+      <div className="flex items-center gap-4">
+        <label className="flex items-center gap-2 cursor-pointer">
+          <span className="text-xs text-gray-500">Share</span>
+          <button
+            onClick={toggle}
+            role="switch"
+            aria-checked={isPublic}
+            className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${
+              isPublic ? 'bg-brand-sage' : 'bg-gray-300'
             }`}
-          />
-        </button>
-      </label>
+          >
+            <span
+              className={`inline-block h-3.5 w-3.5 rounded-full bg-white transition-transform ${
+                isPublic ? 'translate-x-4.5' : 'translate-x-0.5'
+              }`}
+            />
+          </button>
+        </label>
+        {isPublic && (
+          <button
+            onClick={copyLink}
+            className="flex items-center gap-1.5 text-xs font-medium text-brand-charcoal-light hover:text-brand-charcoal transition-colors cursor-pointer"
+          >
+            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <rect x="9" y="9" width="13" height="13" rx="2" />
+              <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+            </svg>
+            {copied ? 'Copied!' : 'Copy Link'}
+          </button>
+        )}
+      </div>
       {isPublic && (
-        <button
-          onClick={copyLink}
-          className="flex items-center gap-1.5 text-xs font-medium text-brand-charcoal-light hover:text-brand-charcoal transition-colors cursor-pointer"
-        >
-          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <rect x="9" y="9" width="13" height="13" rx="2" />
-            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
-          </svg>
-          {copied ? 'Copied!' : 'Copy Link'}
-        </button>
+        <div className="flex items-center gap-3">
+          {editingPasscode ? (
+            <div className="flex items-center gap-2">
+              <input
+                type="text"
+                value={passcode}
+                onChange={(e) => setPasscode(e.target.value)}
+                placeholder="Enter passcode..."
+                autoFocus
+                className="w-36 px-3 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-sky"
+              />
+              <button onClick={savePasscode} className="text-xs font-medium text-brand-charcoal-light hover:text-brand-charcoal">Save</button>
+              <button onClick={() => { setPasscode(initialPasscode || ''); setEditingPasscode(false); }} className="text-xs text-gray-400 hover:text-gray-600">Cancel</button>
+            </div>
+          ) : passcodeSaved ? (
+            <div className="flex items-center gap-2">
+              <svg className="w-3 h-3 text-brand-sage" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
+              </svg>
+              <span className="text-xs text-gray-500">Passcode: <span className="font-mono font-medium text-brand-charcoal">{passcode}</span></span>
+              <button onClick={() => setEditingPasscode(true)} className="text-xs text-gray-400 hover:text-gray-600">Change</button>
+              <button onClick={removePasscode} className="text-xs text-gray-400 hover:text-brand-red">Remove</button>
+            </div>
+          ) : (
+            <button
+              onClick={async () => {
+                const code = generatePasscode();
+                setPasscode(code);
+                await fetch(`/api/share/${analysisId}`, {
+                  method: 'PATCH',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ isPublic, sharePasscode: code }),
+                });
+                setPasscodeSaved(true);
+              }}
+              className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-gray-600 transition-colors cursor-pointer"
+            >
+              <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
+              </svg>
+              Add passcode
+            </button>
+          )}
+        </div>
       )}
     </div>
   );

@@ -43,7 +43,7 @@ export default function LoginPage() {
             <span className="w-2.5 h-2.5 rounded-full bg-brand-sky" />
             <span className="w-2.5 h-2.5 rounded-full bg-brand-gold" />
           </div>
-          <h1 className="text-xl font-bold text-brand-charcoal">Therapist Analyzer</h1>
+          <h1 className="text-xl font-bold text-brand-charcoal">Practice Persona</h1>
         </div>
 
         <form onSubmit={handleSubmit} className="bg-white rounded-lg shadow-sm p-8 space-y-5">

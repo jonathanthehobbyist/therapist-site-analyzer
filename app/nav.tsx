@@ -22,7 +22,7 @@ export default function Nav() {
             <span className="w-2.5 h-2.5 rounded-full bg-brand-sky" />
             <span className="w-2.5 h-2.5 rounded-full bg-brand-gold" />
           </span>
-          <span className="text-brand-charcoal">Therapist Analyzer</span>
+          <span className="text-brand-charcoal">Practice Persona</span>
         </a>
         <div className="flex items-center gap-5">
           <a

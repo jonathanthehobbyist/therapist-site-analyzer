@@ -16,8 +16,17 @@ export async function GET(
     return NextResponse.json({ error: 'Not found' }, { status: 404 });
   }
 
+  // If passcode is set, check for verification cookie
+  if (analysis.sharePasscode) {
+    const cookie = req.cookies.get(`share-${id}`)?.value;
+    if (cookie !== 'verified') {
+      return NextResponse.json({ requiresPasscode: true }, { status: 403 });
+    }
+  }
+
   return NextResponse.json({
     ...analysis,
+    sharePasscode: undefined, // never expose passcode to client
     seoComparisonData: analysis.seoComparisonData
       ? JSON.parse(analysis.seoComparisonData)
       : null,
@@ -41,9 +50,14 @@ export async function PATCH(
   const { id } = await params;
   const body = await req.json();
 
+  const data: Record<string, unknown> = { isPublic: Boolean(body.isPublic) };
+  if ('sharePasscode' in body) {
+    data.sharePasscode = body.sharePasscode || null;
+  }
+
   const analysis = await prisma.analysis.update({
     where: { id },
-    data: { isPublic: Boolean(body.isPublic) },
+    data,
   });
 
   return NextResponse.json({ id: analysis.id, isPublic: analysis.isPublic });

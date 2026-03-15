@@ -59,11 +59,26 @@ export async function PATCH(
   if ('overviewSubtitle' in body) {
     data.overviewSubtitle = typeof body.overviewSubtitle === 'string' ? body.overviewSubtitle : null;
   }
+  const customFields = [
+    'customSeoTitle', 'customSeoDesc',
+    'customPagespeedTitle', 'customPagespeedDesc',
+    'customHipaaTitle', 'customHipaaDesc',
+    'customKeywordsTitle', 'customKeywordsDesc',
+  ];
+  for (const field of customFields) {
+    if (field in body) {
+      data[field] = typeof body[field] === 'string' ? body[field] : null;
+    }
+  }
 
-  const analysis = await prisma.analysis.update({
-    where: { id },
-    data,
-  });
-
-  return NextResponse.json({ id: analysis.id, loomUrl: analysis.loomUrl });
+  try {
+    const analysis = await prisma.analysis.update({
+      where: { id },
+      data,
+    });
+    return NextResponse.json({ id: analysis.id, loomUrl: analysis.loomUrl });
+  } catch (err) {
+    console.error('Analysis PATCH error:', err);
+    return NextResponse.json({ error: String(err) }, { status: 500 });
+  }
 }
