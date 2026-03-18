@@ -2,6 +2,19 @@ import { prisma } from '@/lib/db';
 import { NextResponse } from 'next/server';
 
 export async function GET() {
+  // Mark any analysis stuck in running/pending for >15 min as errored
+  const staleThreshold = new Date(Date.now() - 15 * 60 * 1000);
+  await prisma.analysis.updateMany({
+    where: {
+      status: { in: ['running', 'pending'] },
+      createdAt: { lt: staleThreshold },
+    },
+    data: {
+      status: 'error',
+      error: 'Analysis timed out — it may have encountered an issue. Please try re-running.',
+    },
+  });
+
   const analyses = await prisma.analysis.findMany({
     orderBy: { createdAt: 'desc' },
     select: {

@@ -232,6 +232,9 @@ export default function AnalysisPage() {
   // Pending / Running states
   if (analysis.status === 'pending' || analysis.status === 'running') {
     const progress = analysis.progress || 0;
+    const ageMs = Date.now() - new Date(analysis.createdAt).getTime();
+    const isStuck = ageMs > 10 * 60 * 1000; // 10 minutes
+
     return (
       <div className="max-w-2xl mx-auto px-6 py-20 text-center">
         <div className="bg-white rounded-lg shadow-sm p-14">
@@ -241,20 +244,35 @@ export default function AnalysisPage() {
 
           <div className="w-full bg-gray-100 rounded-full h-2.5 mb-3 overflow-hidden">
             <div
-              className="bg-brand-sky-vivid h-2.5 rounded-full transition-all duration-700 ease-out"
+              className={`h-2.5 rounded-full transition-all duration-700 ease-out ${isStuck ? 'bg-brand-gold' : 'bg-brand-sky-vivid'}`}
               style={{ width: `${Math.max(progress, 2)}%` }}
             />
           </div>
           <div className="flex justify-between items-center mb-8">
             <p className="text-sm text-gray-500">
-              {analysis.progressLabel || 'Starting analysis...'}
+              {isStuck ? 'This analysis appears to be stuck.' : (analysis.progressLabel || 'Starting analysis...')}
             </p>
             <span className="text-sm font-medium text-gray-500">{progress}%</span>
           </div>
 
-          <p className="text-xs text-gray-400">
-            This typically takes 30-90 seconds.
-          </p>
+          {isStuck ? (
+            <div>
+              <p className="text-sm text-gray-500 mb-4">
+                It&apos;s been more than 10 minutes — something may have gone wrong. You can try running it again.
+              </p>
+              <button
+                onClick={rerunAnalysis}
+                disabled={rerunning}
+                className="px-5 py-2.5 text-sm font-medium bg-brand-charcoal text-white rounded-lg hover:bg-brand-charcoal-light transition-colors disabled:opacity-50"
+              >
+                {rerunning ? 'Re-running...' : 'Re-run Analysis'}
+              </button>
+            </div>
+          ) : (
+            <p className="text-xs text-gray-400">
+              This typically takes 30-90 seconds.
+            </p>
+          )}
         </div>
       </div>
     );
@@ -269,8 +287,17 @@ export default function AnalysisPage() {
             <span className="text-red-500 text-2xl font-bold">!</span>
           </div>
           <h2 className="text-xl font-bold text-brand-charcoal mb-2">Analysis Failed</h2>
-          <p className="text-sm text-red-500 mb-6">{analysis.error}</p>
-          <a href="/" className="text-sm text-gray-500 hover:text-brand-charcoal transition-colors">Try again</a>
+          <p className="text-sm text-gray-500 mb-6">{analysis.error}</p>
+          <div className="flex items-center justify-center gap-4">
+            <button
+              onClick={rerunAnalysis}
+              disabled={rerunning}
+              className="px-5 py-2.5 text-sm font-medium bg-brand-charcoal text-white rounded-lg hover:bg-brand-charcoal-light transition-colors disabled:opacity-50"
+            >
+              {rerunning ? 'Re-running...' : 'Re-run Analysis'}
+            </button>
+            <a href="/" className="text-sm text-gray-400 hover:text-brand-charcoal transition-colors">Back to home</a>
+          </div>
         </div>
       </div>
     );
