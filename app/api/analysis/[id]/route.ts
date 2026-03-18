@@ -38,6 +38,9 @@ export async function GET(
     localSearchData: analysis.localSearchData
       ? JSON.parse(analysis.localSearchData)
       : null,
+    sectionModes: analysis.sectionModes
+      ? JSON.parse(analysis.sectionModes)
+      : null,
   });
 }
 
@@ -78,6 +81,11 @@ export async function PATCH(
     data.localSearchData = typeof body.localSearchData === 'string'
       ? body.localSearchData
       : JSON.stringify(body.localSearchData);
+  }
+  if ('sectionModes' in body) {
+    data.sectionModes = typeof body.sectionModes === 'string'
+      ? body.sectionModes
+      : JSON.stringify(body.sectionModes);
   }
 
   try {

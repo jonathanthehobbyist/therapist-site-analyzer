@@ -60,6 +60,7 @@ interface Analysis {
   customLocalSearchTitle: string | null;
   customLocalSearchDesc: string | null;
   localSearchData: LocalSearchData | null;
+  sectionModes: Record<string, string> | null;
   seoSummary: string | null;
   keywordData: KeywordData | null;
   pageSpeedData: FullPageSpeedData | null;
@@ -100,6 +101,31 @@ interface LocalSearchData {
 
 const SECTIONS = ['Overview', 'Local Search', 'SEO', 'Page Speed', 'HIPAA Audit', 'Opportunities'] as const;
 type Section = typeof SECTIONS[number];
+
+type SectionKey = 'seo' | 'pagespeed' | 'hipaa' | 'keywords' | 'local_search';
+
+function autoDetectMode(section: SectionKey, analysis: Analysis): 'default' | 'custom' {
+  switch (section) {
+    case 'seo':
+      return (analysis.seoHygieneScore !== null && analysis.seoHygieneScore < 70) ? 'custom' : 'default';
+    case 'pagespeed': {
+      const mobile = analysis.pageSpeedData?.mobile?.performanceScore ?? null;
+      return (mobile !== null && mobile < 50) ? 'custom' : 'default';
+    }
+    case 'hipaa':
+      return (analysis.hipaaRiskLevel === 'High') ? 'custom' : 'default';
+    case 'keywords':
+      return (!analysis.keywordData?.strikingDistanceKeywords?.length) ? 'custom' : 'default';
+    case 'local_search':
+      return 'default';
+  }
+}
+
+function resolveMode(section: SectionKey, analysis: Analysis): 'default' | 'custom' {
+  const mode = analysis.sectionModes?.[section] || 'auto';
+  if (mode === 'auto') return autoDetectMode(section, analysis);
+  return mode as 'default' | 'custom';
+}
 
 function letterGrade(score: number): string {
   if (score >= 90) return 'A';
@@ -429,6 +455,10 @@ export default function AnalysisPage() {
                   onUpdate={(url) => setAnalysis(prev => prev ? { ...prev, loomUrl: url || null } : prev)}
                 />
               </div>
+              <SectionModeSettings
+                analysis={analysis}
+                onUpdate={(modes) => setAnalysis(prev => prev ? { ...prev, sectionModes: modes } : prev)}
+              />
               <div className="flex items-center justify-between">
                 <ShareToggle analysisId={id} isPublic={analysis.isPublic} passcode={analysis.sharePasscode} onToggle={setIsShared} />
                 <button
@@ -470,6 +500,7 @@ export default function AnalysisPage() {
                 onCustomSave={(t, d) => setAnalysis(prev => prev ? { ...prev, customSeoTitle: t, customSeoDesc: d } : prev)}
                 templateTitle={sectionDescs.template_seo_title}
                 templateDesc={sectionDescs.template_seo_description}
+                mode={resolveMode('seo', analysis)}
               />
 
               {/* Comparison score card */}
@@ -524,6 +555,7 @@ export default function AnalysisPage() {
                 onCustomSave={(t, d) => setAnalysis(prev => prev ? { ...prev, customPagespeedTitle: t, customPagespeedDesc: d } : prev)}
                 templateTitle={sectionDescs.template_pagespeed_title}
                 templateDesc={sectionDescs.template_pagespeed_description}
+                mode={resolveMode('pagespeed', analysis)}
               />
               {analysis.pageSpeedData && <PageSpeedTab data={analysis.pageSpeedData} sectionDescs={sectionDescs} onSaveDescs={(updates) => setSectionDescs(prev => ({ ...prev, ...updates }))} />}
             </div>
@@ -549,6 +581,7 @@ export default function AnalysisPage() {
                 onCustomSave={(t, d) => setAnalysis(prev => prev ? { ...prev, customHipaaTitle: t, customHipaaDesc: d } : prev)}
                 templateTitle={sectionDescs.template_hipaa_title}
                 templateDesc={sectionDescs.template_hipaa_description}
+                mode={resolveMode('hipaa', analysis)}
               />
               {analysis.hipaaData && <HipaaTab data={analysis.hipaaData} sectionDescs={sectionDescs} onSaveDescs={(updates) => setSectionDescs(prev => ({ ...prev, ...updates }))} />}
             </div>
@@ -575,6 +608,7 @@ export default function AnalysisPage() {
                 onCustomSave={(t, d) => setAnalysis(prev => prev ? { ...prev, customKeywordsTitle: t, customKeywordsDesc: d } : prev)}
                 templateTitle={sectionDescs.template_keywords_title}
                 templateDesc={sectionDescs.template_keywords_description}
+                mode={resolveMode('keywords', analysis)}
               />
               {analysis.keywordData && <KeywordsTab data={analysis.keywordData} sectionDescs={sectionDescs} onSaveDescs={(updates) => setSectionDescs(prev => ({ ...prev, ...updates }))} />}
             </div>
@@ -583,22 +617,16 @@ export default function AnalysisPage() {
           {/* Local Search section */}
           {activeSection === 'Local Search' && (
             <div className="space-y-3">
-              <SectionHero
-                scoreLabel="Local Search"
-                scoreSubtext="How clients discover your practice"
-                title={sectionDescs.local_search_title || 'Local Search Visibility'}
-                titleKey="local_search_title"
-                settingKey="local_search_description"
-                description={sectionDescs.local_search_description || ''}
-                onSave={(updates) => setSectionDescs(prev => ({ ...prev, ...updates }))}
+              <LocalSearchHero
+                sectionDescs={sectionDescs}
+                onSaveDescs={(updates) => setSectionDescs(prev => ({ ...prev, ...updates }))}
                 analysisId={id}
                 customTitle={analysis.customLocalSearchTitle}
                 customDesc={analysis.customLocalSearchDesc}
-                customTitleField="customLocalSearchTitle"
-                customDescField="customLocalSearchDesc"
                 onCustomSave={(t, d) => setAnalysis(prev => prev ? { ...prev, customLocalSearchTitle: t, customLocalSearchDesc: d } : prev)}
                 templateTitle={sectionDescs.template_local_search_title}
                 templateDesc={sectionDescs.template_local_search_description}
+                mode={resolveMode('local_search', analysis)}
               />
               <LocalSearchScreenshots
                 data={analysis.localSearchData}
@@ -728,6 +756,75 @@ function SeoSummaryBlock({ analysisId, initial }: { analysisId: string; initial:
       ) : (
         <p className="text-sm text-gray-600 whitespace-pre-line leading-relaxed">{saved}</p>
       )}
+    </div>
+  );
+}
+
+const SECTION_LABELS: { key: SectionKey; label: string }[] = [
+  { key: 'seo', label: 'SEO' },
+  { key: 'pagespeed', label: 'Page Speed' },
+  { key: 'hipaa', label: 'HIPAA Audit' },
+  { key: 'keywords', label: 'Opportunities' },
+  { key: 'local_search', label: 'Local Search' },
+];
+
+function SectionModeSettings({ analysis, onUpdate }: {
+  analysis: Analysis;
+  onUpdate: (modes: Record<string, string>) => void;
+}) {
+  const modes = analysis.sectionModes || {};
+
+  const handleChange = async (section: SectionKey, value: string) => {
+    const updated = { ...modes, [section]: value };
+    onUpdate(updated);
+    try {
+      await fetch(`/api/analysis/${analysis.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sectionModes: updated }),
+      });
+    } catch (err) {
+      console.error('Failed to save section mode:', err);
+    }
+  };
+
+  return (
+    <div className="bg-white rounded-lg border border-gray-200 p-6">
+      <h3 className="text-sm font-semibold text-gray-900 mb-1">Section Display Modes</h3>
+      <p className="text-xs text-gray-500 mb-4">Control whether each section shows default or custom content. Auto will intelligently choose based on scores.</p>
+      <div className="space-y-3">
+        {SECTION_LABELS.map(({ key, label }) => {
+          const current = modes[key] || 'auto';
+          const autoResult = autoDetectMode(key, analysis);
+          return (
+            <div key={key} className="flex items-center justify-between">
+              <div>
+                <span className="text-sm font-medium text-gray-700">{label}</span>
+                {current === 'auto' && (
+                  <span className="ml-2 text-xs text-gray-400">
+                    → {autoResult}
+                  </span>
+                )}
+              </div>
+              <div className="flex gap-1">
+                {(['auto', 'default', 'custom'] as const).map((opt) => (
+                  <button
+                    key={opt}
+                    onClick={() => handleChange(key, opt)}
+                    className={`px-3 py-1 text-xs rounded-full capitalize transition-colors cursor-pointer ${
+                      current === opt
+                        ? 'bg-brand-charcoal text-white'
+                        : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+                    }`}
+                  >
+                    {opt}
+                  </button>
+                ))}
+              </div>
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }
@@ -892,6 +989,7 @@ function SectionHero({
   onCustomSave,
   templateTitle,
   templateDesc,
+  mode,
 }: {
   score?: number | null;
   riskLevel?: string | null;
@@ -914,46 +1012,25 @@ function SectionHero({
   onCustomSave: (title: string | null, desc: string | null) => void;
   templateTitle?: string;
   templateDesc?: string;
+  mode: 'default' | 'custom';
 }) {
-  const isCustom = customDesc !== null;
-  const [mode, setMode] = useState<'default' | 'custom'>(isCustom ? 'custom' : 'default');
   const [editing, setEditing] = useState(false);
-  const [editTitle, setEditTitle] = useState((mode === 'custom' && customTitle !== null ? customTitle : title) || '');
-  const [text, setText] = useState((mode === 'custom' && customDesc !== null ? customDesc : description) || '');
+
+  const displayTitle = mode === 'custom'
+    ? (customTitle || templateTitle || title) || ''
+    : title || '';
+  const displayDesc = mode === 'custom'
+    ? (customDesc || templateDesc || description) || ''
+    : description || '';
+
+  const [editTitle, setEditTitle] = useState(displayTitle);
+  const [text, setText] = useState(displayDesc);
   const [editScoreLabel, setEditScoreLabel] = useState(scoreLabel);
   const [editScoreSubtext, setEditScoreSubtext] = useState(scoreSubtext);
 
-  // Sync mode when custom data loads from API
-  useEffect(() => {
-    if (customDesc !== null && mode === 'default') setMode('custom');
-  }, [customDesc]);
-
-  // Sync when data loads from API
-  useEffect(() => {
-    if (mode === 'default') { setText(description || ''); setEditTitle(title || ''); }
-  }, [description, title, mode]);
-  useEffect(() => {
-    if (mode === 'custom') {
-      setText((customDesc !== null ? customDesc : (templateDesc || description)) || '');
-      setEditTitle((customTitle !== null ? customTitle : (templateTitle || title)) || '');
-    }
-  }, [customDesc, customTitle, mode, description, title, templateDesc, templateTitle]);
+  useEffect(() => { setEditTitle(displayTitle); setText(displayDesc); }, [mode, displayTitle, displayDesc]);
   useEffect(() => { setEditScoreLabel(scoreLabel); }, [scoreLabel]);
   useEffect(() => { setEditScoreSubtext(scoreSubtext); }, [scoreSubtext]);
-
-  function handleModeSwitch(newMode: 'default' | 'custom') {
-    if (newMode === mode) return;
-    setEditing(false);
-    setMode(newMode);
-    if (newMode === 'custom') {
-      // Pre-populate with custom values, then template, then defaults
-      setText((customDesc !== null ? customDesc : (templateDesc || description)) || '');
-      setEditTitle((customTitle !== null ? customTitle : (templateTitle || title)) || '');
-    } else {
-      setText(description || '');
-      setEditTitle(title || '');
-    }
-  }
 
   async function save() {
     if (mode === 'default') {
@@ -967,7 +1044,6 @@ function SectionHero({
       });
       onSave(updates);
     } else {
-      // Save custom per-analysis
       const body: Record<string, string> = { [customTitleField]: editTitle, [customDescField]: text };
       await fetch(`/api/analysis/${analysisId}`, {
         method: 'PATCH',
@@ -976,20 +1052,6 @@ function SectionHero({
       });
       onCustomSave(editTitle, text);
     }
-    setEditing(false);
-  }
-
-  async function revertToDefault() {
-    // Clear custom fields
-    await fetch(`/api/analysis/${analysisId}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ [customTitleField]: null, [customDescField]: null }),
-    });
-    onCustomSave(null, null);
-    setMode('default');
-    setText(description);
-    setEditTitle(title);
     setEditing(false);
   }
 
@@ -1033,27 +1095,14 @@ function SectionHero({
           ) : (
             <h2 className="text-lg font-semibold text-brand-charcoal">{editTitle}</h2>
           )}
-          <div className="flex items-center gap-2 shrink-0">
-            {/* Default / Custom toggle */}
-            <div className="flex rounded-md border border-gray-200 text-[11px] overflow-hidden">
-              <button
-                onClick={() => handleModeSwitch('default')}
-                className={`px-2.5 py-1 transition-colors ${mode === 'default' ? 'bg-brand-charcoal text-white' : 'text-gray-400 hover:text-gray-600'}`}
-              >Default</button>
-              <button
-                onClick={() => handleModeSwitch('custom')}
-                className={`px-2.5 py-1 transition-colors ${mode === 'custom' ? 'bg-brand-charcoal text-white' : 'text-gray-400 hover:text-gray-600'}`}
-              >Custom</button>
-            </div>
-            {!editing && (
-              <button
-                onClick={() => setEditing(true)}
-                className="text-xs text-gray-400 hover:text-gray-600 transition-colors cursor-pointer"
-              >
-                Edit
-              </button>
-            )}
-          </div>
+          {!editing && (
+            <button
+              onClick={() => setEditing(true)}
+              className="text-xs text-gray-400 hover:text-gray-600 transition-colors cursor-pointer shrink-0"
+            >
+              Edit
+            </button>
+          )}
         </div>
         {editing ? (
           <div>
@@ -1068,13 +1117,8 @@ function SectionHero({
                 {mode === 'default' ? 'Saves across all analyses' : 'Saves to this analysis only'}
               </span>
               <div className="flex gap-2">
-                {mode === 'custom' && customDesc !== null && (
-                  <button onClick={revertToDefault} className="px-3 py-1.5 text-xs text-brand-red hover:text-red-700">
-                    Revert to Default
-                  </button>
-                )}
                 <button
-                  onClick={() => { setText(mode === 'custom' ? (customDesc !== null ? customDesc : (templateDesc || description)) : description); setEditTitle(mode === 'custom' ? (customTitle !== null ? customTitle : (templateTitle || title)) : title); setEditing(false); }}
+                  onClick={() => { setEditTitle(displayTitle); setText(displayDesc); setEditing(false); }}
                   className="px-3 py-1.5 text-xs text-gray-400 hover:text-gray-600"
                 >
                   Cancel
@@ -2176,6 +2220,79 @@ const SEARCH_TREND_DATA = [
   { month: 'Feb', googleSearch: 75, googleMaps: 38, direct: 14 },
   { month: 'Mar', googleSearch: 82, googleMaps: 42, direct: 15 },
 ];
+
+function LocalSearchHero({ sectionDescs, onSaveDescs, analysisId, customTitle, customDesc, onCustomSave, templateTitle, templateDesc, mode }: {
+  sectionDescs: Record<string, string>;
+  onSaveDescs: (updates: Record<string, string>) => void;
+  analysisId: string;
+  customTitle: string | null;
+  customDesc: string | null;
+  onCustomSave: (title: string | null, desc: string | null) => void;
+  templateTitle?: string;
+  templateDesc?: string;
+  mode: 'default' | 'custom';
+}) {
+  const defaultTitle = sectionDescs.local_search_title || 'Local Search Visibility';
+  const defaultDesc = sectionDescs.local_search_description || '';
+
+  const displayTitle = mode === 'custom' ? (customTitle || templateTitle || defaultTitle) : defaultTitle;
+  const displayDesc = mode === 'custom' ? (customDesc || templateDesc || defaultDesc) : defaultDesc;
+
+  const [editTitle, setEditTitle] = useState(displayTitle);
+  const [editDesc, setEditDesc] = useState(displayDesc);
+  const [editing, setEditing] = useState(false);
+
+  useEffect(() => { setEditTitle(displayTitle); setEditDesc(displayDesc); }, [mode, displayTitle, displayDesc]);
+
+  async function save() {
+    if (mode === 'default') {
+      const updates = { local_search_title: editTitle, local_search_description: editDesc };
+      onSaveDescs(updates);
+      await fetch('/api/settings', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updates),
+      });
+    } else {
+      const t = editTitle.trim() || null;
+      const d = editDesc.trim() || null;
+      onCustomSave(t, d);
+      await fetch(`/api/analysis/${analysisId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ customLocalSearchTitle: t, customLocalSearchDesc: d }),
+      });
+    }
+    setEditing(false);
+  }
+
+  return (
+    <div className="bg-white rounded-lg border border-gray-200 px-8 py-10">
+      {editing ? (
+        <div className="space-y-2">
+          <input value={editTitle} onChange={(e) => setEditTitle(e.target.value)}
+            className="text-lg font-semibold text-brand-charcoal border border-gray-200 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-brand-sky w-full" />
+          <textarea value={editDesc} onChange={(e) => setEditDesc(e.target.value)} rows={3}
+            className="w-full text-sm text-gray-600 border border-gray-200 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-brand-sky resize-y" />
+          <div className="flex gap-2 justify-end">
+            <button onClick={() => { setEditTitle(displayTitle); setEditDesc(displayDesc); setEditing(false); }} className="px-3 py-1.5 text-xs text-gray-400 hover:text-gray-600">Cancel</button>
+            <button onClick={save}
+              className="px-3 py-1.5 text-xs font-medium bg-brand-charcoal-light text-white rounded-md hover:bg-brand-charcoal transition-colors">Save</button>
+          </div>
+        </div>
+      ) : (
+        <>
+          <div className="flex items-center gap-2">
+            <h2 className="text-lg font-semibold text-brand-charcoal">{displayTitle}</h2>
+            <button onClick={() => { setEditTitle(displayTitle); setEditDesc(displayDesc); setEditing(true); }}
+              className="text-[10px] text-gray-400 hover:text-gray-600 transition-colors cursor-pointer">Edit</button>
+          </div>
+          <p className="text-sm text-gray-600 mt-2 leading-relaxed">{displayDesc}</p>
+        </>
+      )}
+    </div>
+  );
+}
 
 function LocalSearchScreenshots({ data, analysisId, onUpdate }: {
   data: LocalSearchData | null;
