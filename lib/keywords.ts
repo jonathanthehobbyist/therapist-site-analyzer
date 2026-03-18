@@ -1,5 +1,5 @@
 import { ScrapedPage } from './scraper';
-import { AhrefsOrganicKeyword, AhrefsRelatedKeyword } from './ahrefs';
+import { AhrefsOrganicKeyword, AhrefsRelatedKeyword, TopPage } from './ahrefs';
 
 export interface SiteKeyword {
   keyword: string;
@@ -11,6 +11,8 @@ export interface KeywordData {
   siteKeywords: SiteKeyword[];
   organicKeywords: AhrefsOrganicKeyword[];
   relatedKeywords: AhrefsRelatedKeyword[];
+  strikingDistanceKeywords?: AhrefsOrganicKeyword[];
+  topPages?: TopPage[];
 }
 
 // Common stop words to filter out

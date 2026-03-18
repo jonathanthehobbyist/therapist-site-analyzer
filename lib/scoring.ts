@@ -29,11 +29,10 @@ export function scoreSEOHygiene(score: number): number {
  */
 export function scoreHIPAA(
   findings: HipaaFinding[]
-): 'Low' | 'Moderate' | 'High' | 'Critical' {
+): 'Low' | 'Moderate' | 'High' {
   const highCount = findings.filter((f) => f.severity === 'high').length;
   const mediumCount = findings.filter((f) => f.severity === 'medium').length;
 
-  if (highCount >= 3) return 'Critical';
   if (highCount >= 1) return 'High';
   if (mediumCount >= 2) return 'Moderate';
   return 'Low';

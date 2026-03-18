@@ -1,7 +1,7 @@
 import { prisma } from './db';
 import { scrapeSite } from './scraper';
 import { analyzeHipaa, HipaaFinding } from './hipaa';
-import { getAhrefsData, getAhrefsOrganicKeywords, getAhrefsRelatedKeywords } from './ahrefs';
+import { getAhrefsData, getAhrefsOrganicKeywords, getAhrefsRelatedKeywords, getStrikingDistanceKeywords, getTopPages } from './ahrefs';
 import { extractSiteKeywords, KeywordData } from './keywords';
 import { getPageSpeedData, getFullPageSpeedData } from './pagespeed';
 import { buildSeoComparison } from './seo-comparison';
@@ -95,19 +95,15 @@ export async function runAnalysis(analysisId: string): Promise<void> {
 
     // 8. Keyword analysis
     await setProgress(analysisId, 88, 'Analyzing keywords...');
-    console.log(`[${analysisId}] Extracting site keywords...`);
-    const siteKeywords = extractSiteKeywords(targetScrape.pages);
     console.log(`[${analysisId}] Fetching Ahrefs organic keywords...`);
     const organicKeywords = await getAhrefsOrganicKeywords(siteUrl);
-    console.log(`[${analysisId}] Fetching Ahrefs related keywords...`);
-    const seeds = organicKeywords.slice(0, 3).map(k => k.keyword);
-    if (seeds.length === 0 && siteKeywords.length > 0) {
-      seeds.push(...siteKeywords.slice(0, 3).map(k => k.keyword));
-    }
-    console.log(`[${analysisId}] Related keyword seeds: ${JSON.stringify(seeds)}`);
-    const relatedKeywords = await getAhrefsRelatedKeywords(seeds);
-    console.log(`[${analysisId}] Got ${relatedKeywords.length} related keywords`);
-    const keywordData: KeywordData = { siteKeywords, organicKeywords, relatedKeywords };
+    console.log(`[${analysisId}] Fetching striking distance keywords (positions 3-10)...`);
+    const strikingDistanceKeywords = await getStrikingDistanceKeywords(siteUrl);
+    console.log(`[${analysisId}] Got ${strikingDistanceKeywords.length} striking distance keywords`);
+    console.log(`[${analysisId}] Fetching top pages...`);
+    const topPages = await getTopPages(siteUrl);
+    console.log(`[${analysisId}] Got ${topPages.length} top pages`);
+    const keywordData: KeywordData = { siteKeywords: [], organicKeywords, relatedKeywords: [], strikingDistanceKeywords, topPages };
 
     // 9. Generate summary (mix of SEO + HIPAA)
     const seoSummary = generateSummary(hygiene.score, hygiene.findings, hipaa.riskLevel, hipaa.findings);

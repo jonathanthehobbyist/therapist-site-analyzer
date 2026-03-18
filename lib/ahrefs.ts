@@ -77,25 +77,62 @@ export interface AhrefsOrganicKeyword {
   difficulty: number;
 }
 
+export async function getStrikingDistanceKeywords(siteUrl: string): Promise<AhrefsOrganicKeyword[]> {
+  const domain = extractDomain(siteUrl);
+  const date = new Date().toISOString().split('T')[0];
+  const where = JSON.stringify({
+    and: [
+      { field: 'best_position', is: ['gte', 3] },
+      { field: 'best_position', is: ['lte', 10] },
+    ],
+  });
+
+  try {
+    const data = await ahrefsFetch('organic-keywords', {
+      target: domain,
+      output: 'json',
+      limit: '20',
+      select: 'keyword,volume,best_position,sum_traffic,keyword_difficulty',
+      order_by: 'volume:desc',
+      country: 'us',
+      date,
+      where,
+    }) as { keywords?: { keyword: string; volume: number; best_position: number; sum_traffic: number; keyword_difficulty: number }[] };
+
+    return (data.keywords || []).map((k) => ({
+      keyword: k.keyword,
+      volume: k.volume ?? 0,
+      position: k.best_position ?? 0,
+      traffic: k.sum_traffic ?? 0,
+      difficulty: k.keyword_difficulty ?? 0,
+    }));
+  } catch (err) {
+    console.error('Ahrefs striking distance keywords fetch failed:', err instanceof Error ? err.message : err);
+    return [];
+  }
+}
+
 export async function getAhrefsOrganicKeywords(siteUrl: string): Promise<AhrefsOrganicKeyword[]> {
   const domain = extractDomain(siteUrl);
+  const date = new Date().toISOString().split('T')[0];
 
   try {
     const data = await ahrefsFetch('organic-keywords', {
       target: domain,
       output: 'json',
       limit: '50',
-      select: 'keyword,volume,position,traffic,difficulty',
-      order_by: 'traffic:desc',
+      select: 'keyword,volume,best_position,sum_traffic,keyword_difficulty',
+      order_by: 'sum_traffic:desc',
       country: 'us',
-    }) as { keywords?: { keyword: string; volume: number; position: number; traffic: number; difficulty: number }[] };
+      date,
+    }) as { keywords?: { keyword: string; volume: number; best_position: number; sum_traffic: number; keyword_difficulty: number }[] };
 
     return (data.keywords || []).map((k) => ({
       keyword: k.keyword,
       volume: k.volume ?? 0,
-      position: k.position ?? 0,
-      traffic: k.traffic ?? 0,
-      difficulty: k.difficulty ?? 0,
+      position: k.best_position ?? 0,
+      traffic: k.sum_traffic ?? 0,
+      difficulty: k.keyword_difficulty ?? 0,
     }));
   } catch (err) {
     console.error('Ahrefs organic keywords fetch failed:', err instanceof Error ? err.message : err);
@@ -154,6 +191,50 @@ export async function getAhrefsRelatedKeywords(seeds: string[]): Promise<AhrefsR
     return allRelated.sort((a, b) => b.volume - a.volume).slice(0, 30);
   } catch (err) {
     console.error('Ahrefs related keywords fetch failed:', err instanceof Error ? err.message : err);
+    return [];
+  }
+}
+
+export interface TopPage {
+  url: string;
+  traffic: number;
+  keywords: number;
+  topKeyword: string;
+  topKeywordPosition: number;
+  topKeywordVolume: number;
+  referringDomains: number;
+  urlRating: number;
+  trafficValue: number;
+}
+
+export async function getTopPages(siteUrl: string): Promise<TopPage[]> {
+  const domain = extractDomain(siteUrl);
+  const date = new Date().toISOString().split('T')[0];
+
+  try {
+    const data = await ahrefsFetch('top-pages', {
+      target: domain,
+      output: 'json',
+      limit: '10',
+      select: 'url,sum_traffic,keywords,top_keyword,top_keyword_best_position,top_keyword_volume,referring_domains,ur,value',
+      country: 'us',
+      order_by: 'sum_traffic:desc',
+      date,
+    }) as { pages?: { url: string; sum_traffic: number; keywords: number; top_keyword: string; top_keyword_best_position: number; top_keyword_volume: number; referring_domains: number; ur: number; value: number }[] };
+
+    return (data.pages || []).map((p) => ({
+      url: p.url,
+      traffic: p.sum_traffic ?? 0,
+      keywords: p.keywords ?? 0,
+      topKeyword: p.top_keyword ?? '',
+      topKeywordPosition: p.top_keyword_best_position ?? 0,
+      topKeywordVolume: p.top_keyword_volume ?? 0,
+      referringDomains: p.referring_domains ?? 0,
+      urlRating: p.ur ?? 0,
+      trafficValue: p.value ?? 0,
+    }));
+  } catch (err) {
+    console.error('Ahrefs top pages fetch failed:', err instanceof Error ? err.message : err);
     return [];
   }
 }

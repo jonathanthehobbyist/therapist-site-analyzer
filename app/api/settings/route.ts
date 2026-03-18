@@ -11,6 +11,10 @@ const DEFAULTS: Record<string, string> = {
     'HIPAA compliance protects your clients\' sensitive health information. This audit checks your website for common privacy risks — like insecure contact forms, third-party trackers, and missing privacy policies. Even unintentional violations can result in significant fines and loss of client trust.',
   keywords_description:
     'Keywords are the words and phrases potential clients type into Google when looking for a therapist. This section shows the keywords your site currently emphasizes and the terms you\'re ranking for in search results. Understanding your keyword profile helps you attract the right clients.',
+  opportunities_striking_title: 'Low-Hanging Fruit',
+  opportunities_striking_subtitle: 'Keywords ranking positions 3–10 — close to the top of page 1. Small improvements here can drive significant traffic gains.',
+  opportunities_toppages_title: 'Top Pages by Traffic',
+  opportunities_toppages_subtitle: 'Your highest-traffic pages and the keywords driving visitors to them.',
   hipaa_findings_title: 'Findings',
   seo_score_label: 'SEO Hygiene',
   seo_score_subtext: 'How well your site follows on-page SEO best practices',
@@ -85,7 +89,7 @@ export async function PATCH(req: NextRequest) {
   const updates: { key: string; value: string }[] = [];
 
   for (const [key, value] of Object.entries(body)) {
-    if (typeof value === 'string' && (key in DEFAULTS || key.startsWith('finding_') || key.startsWith('seo_') || key.startsWith('metric_') || key.startsWith('hipaa_') || key.startsWith('threshold_') || key.startsWith('template_'))) {
+    if (typeof value === 'string' && (key in DEFAULTS || key.startsWith('finding_') || key.startsWith('seo_') || key.startsWith('metric_') || key.startsWith('hipaa_') || key.startsWith('threshold_') || key.startsWith('template_') || key.startsWith('opportunities_'))) {
       updates.push({ key, value });
     }
   }

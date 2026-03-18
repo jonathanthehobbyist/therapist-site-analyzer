@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
+import { Search, AlertTriangle, Wrench, ExternalLink } from 'lucide-react';
 
 interface FilmstripFrame {
   timing: number;
@@ -66,6 +67,8 @@ interface KeywordData {
   siteKeywords: { keyword: string; frequency: number; foundIn: string[] }[];
   organicKeywords: { keyword: string; volume: number; position: number; traffic: number; difficulty: number }[];
   relatedKeywords?: { keyword: string; volume: number; difficulty: number; cpc: number }[];
+  strikingDistanceKeywords?: { keyword: string; volume: number; position: number; traffic: number; difficulty: number }[];
+  topPages?: { url: string; traffic: number; keywords: number; topKeyword: string; topKeywordPosition: number; topKeywordVolume: number; referringDomains: number; urlRating: number; trafficValue: number }[];
 }
 
 interface SeoComparisonData {
@@ -86,7 +89,7 @@ interface HipaaData {
   findings: { severity: string; check: string; description: string; pageUrl: string; whyRisk: string; recommendedFix: string }[];
 }
 
-const SECTIONS = ['Overview', 'SEO', 'Page Speed', 'HIPAA Audit', 'Keywords'] as const;
+const SECTIONS = ['Overview', 'SEO', 'Page Speed', 'HIPAA Audit', 'Opportunities'] as const;
 type Section = typeof SECTIONS[number];
 
 function letterGrade(score: number): string {
@@ -134,17 +137,16 @@ const STATUS_ICON: Record<string, string> = {
 };
 
 const SEVERITY_COLORS: Record<string, string> = {
-  high: 'bg-brand-rose text-white',
-  medium: 'bg-brand-gold-light text-brand-charcoal',
-  low: 'bg-brand-sky-light text-brand-charcoal-light',
-  pass: 'bg-brand-sage-light text-brand-sage-dark',
+  high: 'bg-white border border-brand-rose text-brand-rose',
+  medium: 'bg-white border border-brand-gold text-brand-gold',
+  low: 'bg-white border border-brand-sky text-brand-charcoal-light',
+  pass: 'bg-white border border-brand-sage text-brand-sage-dark',
 };
 
 const RISK_COLORS: Record<string, string> = {
-  Low: 'bg-brand-sage-light text-brand-sage-dark',
-  Moderate: 'bg-brand-gold-light text-brand-charcoal',
-  High: 'bg-brand-rose-light text-brand-rose-dark',
-  Critical: 'bg-brand-rose text-white',
+  Low: 'bg-white border border-brand-sage text-brand-sage-dark',
+  Moderate: 'bg-white border border-brand-gold text-brand-gold',
+  High: 'bg-white border border-brand-rose text-brand-rose-dark',
 };
 
 export default function AnalysisPage() {
@@ -171,6 +173,7 @@ export default function AnalysisPage() {
         const res = await fetch(`/api/analysis/${id}`);
         if (!res.ok) throw new Error('Analysis not found');
         const data = await res.json();
+        if (data.hipaaRiskLevel === 'Critical') data.hipaaRiskLevel = 'High';
         setAnalysis(data);
         setIsShared(data.isPublic);
 
@@ -303,21 +306,21 @@ export default function AnalysisPage() {
       section: 'HIPAA Audit',
       label: 'HIPAA Audit',
       score: analysis.hipaaRiskLevel || undefined,
-      scoreColor: analysis.hipaaRiskLevel === 'Critical' || analysis.hipaaRiskLevel === 'High'
-        ? 'text-brand-rose'
-        : analysis.hipaaRiskLevel === 'Moderate'
+      scoreColor: analysis.hipaaRiskLevel === 'Moderate'
         ? 'text-brand-gold'
-        : 'text-brand-charcoal',
+        : analysis.hipaaRiskLevel === 'Low'
+        ? 'text-brand-charcoal'
+        : 'text-brand-rose',
       sublabel: 'Compliance Risk',
     },
     {
-      section: 'Keywords',
-      label: 'Keywords',
-      score: analysis.keywordData
-        ? `${analysis.keywordData.siteKeywords.length + analysis.keywordData.organicKeywords.length}`
+      section: 'Opportunities',
+      label: 'Opportunities',
+      score: analysis.keywordData?.strikingDistanceKeywords
+        ? `${analysis.keywordData.strikingDistanceKeywords.length}`
         : undefined,
       scoreColor: 'text-brand-charcoal',
-      sublabel: 'On-Site & Organic',
+      sublabel: 'Striking Distance Keywords',
     },
   ];
 
@@ -510,14 +513,14 @@ export default function AnalysisPage() {
             </div>
           )}
 
-          {/* Keywords section */}
-          {activeSection === 'Keywords' && (
+          {/* Opportunities section */}
+          {activeSection === 'Opportunities' && (
             <div className="space-y-3">
               <SectionHero
-                score={analysis.keywordData ? analysis.keywordData.siteKeywords.length + analysis.keywordData.organicKeywords.length : null}
+                score={analysis.keywordData?.strikingDistanceKeywords?.length ?? null}
                 scoreColor="text-brand-charcoal"
-                scoreLabel="Keywords"
-                scoreSubtext="On-site and organic keywords found"
+                scoreLabel="Opportunities"
+                scoreSubtext="Keywords ranking 3–10, close to top of page 1"
                 title={sectionDescs.keywords_title || 'Why Keywords Matter'}
                 titleKey="keywords_title"
                 settingKey="keywords_description"
@@ -532,7 +535,7 @@ export default function AnalysisPage() {
                 templateTitle={sectionDescs.template_keywords_title}
                 templateDesc={sectionDescs.template_keywords_description}
               />
-              {analysis.keywordData && <KeywordsTab data={analysis.keywordData} sectionDescs={sectionDescs} />}
+              {analysis.keywordData && <KeywordsTab data={analysis.keywordData} sectionDescs={sectionDescs} onSaveDescs={(updates) => setSectionDescs(prev => ({ ...prev, ...updates }))} />}
             </div>
           )}
         </div>
@@ -920,9 +923,9 @@ function SectionHero({
       <div className="w-1/3 flex flex-col justify-center border-r border-gray-100 pr-8">
         {riskLevel ? (
           <span className={`text-2xl font-bold ${
-            riskLevel === 'Critical' || riskLevel === 'High' ? 'text-brand-rose' :
             riskLevel === 'Moderate' ? 'text-brand-gold' :
-            'text-brand-charcoal'
+            riskLevel === 'Low' ? 'text-brand-charcoal' :
+            'text-brand-rose'
           }`}>{riskLevel}</span>
         ) : (
           <span className={`text-4xl font-bold ${scoreColorOverride || 'text-brand-orange'}`}>
@@ -1455,18 +1458,30 @@ function HipaaFindingCard({ finding, isLast, sectionDescs, onSaveDescs }: {
       ) : (
         <>
           <div className="flex items-center gap-2 mt-2">
-            <span className="font-medium text-sm text-brand-charcoal">{editCheck}</span>
+            <span className="font-semibold text-base text-brand-charcoal">{editCheck}</span>
             <button onClick={() => setEditing(true)} className="text-[10px] text-gray-400 hover:text-gray-600 transition-colors cursor-pointer">Edit</button>
           </div>
-          <p className="text-sm text-gray-700 mt-1">{editDesc}</p>
+          <div className="flex gap-2 mt-4">
+            <Search className="w-4 h-4 text-gray-400 shrink-0 mt-0.5" />
+            <p className="text-sm text-gray-700">{editDesc}</p>
+          </div>
           {finding.whyRisk && finding.severity !== 'pass' && (
-            <p className="text-xs text-gray-600 mt-1">{finding.whyRisk}</p>
+            <div className="flex gap-2 mt-5">
+              <AlertTriangle className="w-4 h-4 text-gray-400 shrink-0 mt-0.5" />
+              <p className="text-sm text-gray-600">{finding.whyRisk}</p>
+            </div>
           )}
           {finding.recommendedFix && finding.severity !== 'pass' && (
-            <p className="text-xs text-brand-rose mt-3">Fix: {finding.recommendedFix}</p>
+            <div className="flex gap-2 mt-5">
+              <Wrench className="w-4 h-4 text-gray-400 shrink-0 mt-0.5" />
+              <p className="text-sm text-gray-700"><span className="font-semibold">Fix:</span> {finding.recommendedFix}</p>
+            </div>
           )}
           {finding.pageUrl && (
-            <p className="text-xs text-gray-600 mt-1">Page: {finding.pageUrl}</p>
+            <div className="flex gap-2 mt-5">
+              <ExternalLink className="w-4 h-4 text-gray-400 shrink-0 mt-0.5" />
+              <p className="text-sm text-gray-600">Page: {finding.pageUrl}</p>
+            </div>
           )}
         </>
       )}
@@ -1882,7 +1897,7 @@ function PageSpeedTab({ data, sectionDescs, onSaveDescs }: { data: FullPageSpeed
   );
 }
 
-function KeywordsTab({ data, sectionDescs }: { data: KeywordData; sectionDescs: Record<string, string> }) {
+function KeywordsTab({ data, sectionDescs, onSaveDescs }: { data: KeywordData; sectionDescs: Record<string, string>; onSaveDescs: (updates: Record<string, string>) => void }) {
   const SOURCE_LABELS: Record<string, string> = {
     title: 'Page Title',
     'meta description': 'Meta Desc',
@@ -1895,13 +1910,11 @@ function KeywordsTab({ data, sectionDescs }: { data: KeywordData; sectionDescs: 
 
   return (
     <div className="space-y-3">
-      {/* Site Keywords */}
+      {/* Site Keywords (legacy — hidden when empty) */}
+      {data.siteKeywords.length > 0 && (
       <div className="bg-white rounded-lg border border-gray-200 p-8">
         <h2 className="text-lg font-semibold text-brand-charcoal mb-2">Keywords Found on Your Site</h2>
         <p className="text-sm text-gray-500 mb-5">Most prominent keywords extracted from your website, ranked by prominence.</p>
-        {data.siteKeywords.length === 0 ? (
-          <p className="text-sm text-gray-500">No significant keywords detected.</p>
-        ) : (
           <table className="w-full text-sm">
             <thead>
               <tr className="text-left text-xs text-gray-500 border-b border-gray-100">
@@ -1928,16 +1941,20 @@ function KeywordsTab({ data, sectionDescs }: { data: KeywordData; sectionDescs: 
               ))}
             </tbody>
           </table>
-        )}
       </div>
+      )}
 
-      {/* Organic Keywords from Ahrefs */}
-      <div className="bg-white rounded-lg border border-gray-200 p-8">
-        <h2 className="text-lg font-semibold text-brand-charcoal mb-2">Organic Keywords (from Ahrefs)</h2>
-        <p className="text-sm text-gray-500 mb-5">Keywords your site ranks for in Google, sorted by estimated traffic.</p>
-        {data.organicKeywords.length === 0 ? (
-          <p className="text-sm text-gray-500">No organic keyword data available. This may mean Ahrefs hasn&apos;t indexed this domain yet.</p>
-        ) : (
+      {/* Striking Distance Keywords */}
+      {data.strikingDistanceKeywords && data.strikingDistanceKeywords.length > 0 && (
+        <div className="bg-white rounded-lg border border-brand-gold/30 p-8">
+          <EditableHeading
+            title="Low-Hanging Fruit"
+            titleKey="opportunities_striking_title"
+            subtitle="Keywords ranking positions 3–10 — close to the top of page 1. Small improvements here can drive significant traffic gains."
+            subtitleKey="opportunities_striking_subtitle"
+            sectionDescs={sectionDescs}
+            onSaveDescs={onSaveDescs}
+          />
           <table className="w-full text-sm">
             <thead>
               <tr className="text-left text-xs text-gray-500 border-b border-gray-100">
@@ -1946,22 +1963,79 @@ function KeywordsTab({ data, sectionDescs }: { data: KeywordData; sectionDescs: 
                 <th className="pb-2 font-medium text-right">Volume</th>
                 <th className="pb-2 font-medium text-right">Traffic</th>
                 <th className="pb-2 font-medium text-right">KD</th>
+                <th className="pb-2 font-medium text-right">Gap to #3</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
-              {data.organicKeywords.map((kw, i) => (
+              {data.strikingDistanceKeywords.map((kw, i) => (
                 <tr key={i}>
                   <td className="py-3 font-medium text-brand-charcoal">{kw.keyword}</td>
                   <td className="py-3 text-right text-gray-600">#{kw.position}</td>
                   <td className="py-3 text-right text-gray-600">{kw.volume.toLocaleString()}</td>
                   <td className="py-3 text-right text-gray-600">{kw.traffic.toLocaleString()}</td>
                   <td className={`py-3 text-right font-medium ${kwDifficultyColor(kw.difficulty, sectionDescs)}`}>{kw.difficulty}</td>
+                  <td className="py-3 text-right">
+                    <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
+                      kw.position <= 5 ? 'bg-brand-sage-light text-brand-sage-dark' : 'bg-brand-gold-light text-brand-charcoal'
+                    }`}>
+                      {kw.position - 3 === 0 ? 'At #3' : `${kw.position - 3} away`}
+                    </span>
+                  </td>
                 </tr>
               ))}
             </tbody>
           </table>
-        )}
-      </div>
+        </div>
+      )}
+
+      {/* Top Pages */}
+      {data.topPages && data.topPages.length > 0 && (
+        <div className="bg-white rounded-lg border border-gray-200 p-8">
+          <EditableHeading
+            title="Top Pages by Traffic"
+            titleKey="opportunities_toppages_title"
+            subtitle="Your highest-traffic pages and the keywords driving visitors to them."
+            subtitleKey="opportunities_toppages_subtitle"
+            sectionDescs={sectionDescs}
+            onSaveDescs={onSaveDescs}
+          />
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-left text-xs text-gray-500 border-b border-gray-100">
+                  <th className="pb-2 font-medium">Page</th>
+                  <th className="pb-2 font-medium text-right">Traffic</th>
+                  <th className="pb-2 font-medium text-right">Keywords</th>
+                  <th className="pb-2 font-medium text-right">UR</th>
+                  <th className="pb-2 font-medium text-right">Ref. Domains</th>
+                  <th className="pb-2 font-medium text-right">Top Keyword</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-50">
+                {data.topPages.map((page, i) => {
+                  let shortUrl: string;
+                  try { shortUrl = new URL(page.url).pathname || '/'; } catch { shortUrl = page.url; }
+                  return (
+                    <tr key={i}>
+                      <td className="py-3 font-medium text-brand-charcoal max-w-[180px] truncate" title={page.url}>{shortUrl}</td>
+                      <td className="py-3 text-right text-gray-600">{page.traffic.toLocaleString()}</td>
+                      <td className="py-3 text-right text-gray-600">{page.keywords.toLocaleString()}</td>
+                      <td className="py-3 text-right">
+                        <span className={`font-medium ${page.urlRating >= 20 ? 'text-brand-sage-dark' : page.urlRating >= 10 ? 'text-brand-gold' : 'text-gray-400'}`}>{page.urlRating}</span>
+                      </td>
+                      <td className="py-3 text-right text-gray-600">{page.referringDomains.toLocaleString()}</td>
+                      <td className="py-3 text-right text-xs max-w-[160px] truncate" title={`${page.topKeyword} (${page.topKeywordVolume.toLocaleString()} vol/mo)`}>
+                        <span className="text-gray-600">{page.topKeyword}</span>
+                        <span className="text-gray-400 ml-1">#{page.topKeywordPosition}</span>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
 
       {/* Related Keywords from Ahrefs */}
       {data.relatedKeywords && data.relatedKeywords.length > 0 && (

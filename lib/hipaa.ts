@@ -11,7 +11,7 @@ export interface HipaaFinding {
 }
 
 export interface HipaaResult {
-  riskLevel: 'Low' | 'Moderate' | 'High' | 'Critical';
+  riskLevel: 'Low' | 'Moderate' | 'High';
   findings: HipaaFinding[];
 }
 
@@ -137,15 +137,22 @@ export async function analyzeHipaa(pages: ScrapedPage[]): Promise<HipaaResult> {
     messages: [
       {
         role: 'user',
-        content: `You are a HIPAA compliance auditor for therapist/healthcare websites. Analyze the following extracted website data and identify HIPAA risk findings.
+        content: `You are a HIPAA compliance auditor for therapist/healthcare websites. Analyze the following extracted website data and identify potential HIPAA risk findings.
+
+IMPORTANT TONE GUIDELINES:
+- Use soft, non-alarming language throughout. You are advising, not accusing.
+- For descriptions, say "We detected what looks like..." or "It appears that..." rather than stating things definitively.
+- For whyRisk, say "this may violate" or "this could pose a risk" rather than "this violates."
+- For recommendedFix, frame as helpful suggestions: "Consider removing..." or "We recommend..." rather than demands.
+- Remember: these are small practice owners, not security engineers. Be helpful and clear, not scary.
 
 For each finding, provide:
 - severity: "high", "medium", "low", or "pass" (pass = compliant item found)
 - check: short label (e.g. "Google Analytics on Form Page")
-- description: what was detected (e.g. "GA4 script found on /contact page which contains a patient intake form")
+- description: what was detected, using soft language (e.g. "We detected what looks like a GA4 script on the /contact page, which appears to contain a patient intake form")
 - pageUrl: which page URL the finding relates to
-- whyRisk: 1-2 sentence explanation of why this is a HIPAA risk
-- recommendedFix: actionable fix recommendation
+- whyRisk: 1-2 sentence explanation of why this could be a HIPAA concern (use "may" and "could", not "violates" or "is a violation")
+- recommendedFix: actionable fix suggestion
 
 Check for these specific issues:
 1. Contact/intake forms with no encryption notice or BAA disclosure (HIGH)
@@ -217,11 +224,10 @@ ${pagesContent}`,
 
 function calculateRiskLevel(
   findings: HipaaFinding[]
-): 'Low' | 'Moderate' | 'High' | 'Critical' {
+): 'Low' | 'Moderate' | 'High' {
   const highCount = findings.filter((f) => f.severity === 'high').length;
   const mediumCount = findings.filter((f) => f.severity === 'medium').length;
 
-  if (highCount >= 3) return 'Critical';
   if (highCount >= 1) return 'High';
   if (mediumCount >= 2) return 'Moderate';
   return 'Low';

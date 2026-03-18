@@ -18,7 +18,6 @@ const RISK_COLORS: Record<string, string> = {
   Low: 'bg-brand-sage-light text-brand-sage-dark',
   Moderate: 'bg-brand-gold-light text-brand-charcoal',
   High: 'bg-brand-rose-light text-brand-rose-dark',
-  Critical: 'bg-brand-rose text-white',
 };
 
 export default function HistoryPage() {
