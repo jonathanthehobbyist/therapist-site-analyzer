@@ -1944,6 +1944,17 @@ function KeywordsTab({ data, sectionDescs, onSaveDescs }: { data: KeywordData; s
       </div>
       )}
 
+      {/* Empty state */}
+      {(!data.strikingDistanceKeywords || data.strikingDistanceKeywords.length === 0) &&
+       (!data.topPages || data.topPages.length === 0) &&
+       data.organicKeywords.length === 0 &&
+       data.siteKeywords.length === 0 && (
+        <div className="bg-white rounded-lg border border-gray-200 p-12 text-center">
+          <p className="text-gray-500 text-sm">We weren&apos;t able to find keyword or ranking data for this site. This usually means the site is new, has very low traffic, or isn&apos;t yet indexed by major SEO tools.</p>
+          <p className="text-gray-400 text-xs mt-3">Try re-running the analysis later, or check that the URL is correct.</p>
+        </div>
+      )}
+
       {/* Striking Distance Keywords */}
       {data.strikingDistanceKeywords && data.strikingDistanceKeywords.length > 0 && (
         <div className="bg-white rounded-lg border border-brand-gold/30 p-8">
