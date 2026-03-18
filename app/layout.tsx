@@ -3,8 +3,11 @@ import "./globals.css";
 import Nav from "./nav";
 
 export const metadata: Metadata = {
-  title: "Therapist Website Analyzer",
-  description: "SEO comparison, SEO hygiene, and HIPAA risk audit for therapist websites",
+  title: "Practice Persona",
+  description: "SEO, HIPAA compliance, and local search analysis for therapy practices",
+  icons: {
+    icon: '/favicon.svg',
+  },
 };
 
 export default function RootLayout({

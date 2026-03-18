@@ -95,9 +95,10 @@ interface HipaaData {
 
 interface LocalSearchData {
   screenshots: { url: string; caption: string }[];
+  referralSources?: { name: string; value: number }[];
 }
 
-const SECTIONS = ['Overview', 'SEO', 'Page Speed', 'HIPAA Audit', 'Opportunities', 'Local Search'] as const;
+const SECTIONS = ['Overview', 'Local Search', 'SEO', 'Page Speed', 'HIPAA Audit', 'Opportunities'] as const;
 type Section = typeof SECTIONS[number];
 
 function letterGrade(score: number): string {
@@ -324,6 +325,11 @@ export default function AnalysisPage() {
       icon: <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M5 12h14m-7-7l7 7-7 7" /></svg>,
     },
     {
+      section: 'Local Search',
+      label: 'Local Search',
+      sublabel: 'How clients find you',
+    },
+    {
       section: 'SEO',
       label: 'Can Google Find Your Site?',
       score: analysis.seoHygieneScore !== null ? `${analysis.seoHygieneScore}` : undefined,
@@ -356,11 +362,6 @@ export default function AnalysisPage() {
         : undefined,
       scoreColor: 'text-brand-charcoal',
       sublabel: 'Striking Distance Keywords',
-    },
-    {
-      section: 'Local Search',
-      label: 'Local Search',
-      sublabel: 'How clients find you',
     },
   ];
 
@@ -599,10 +600,17 @@ export default function AnalysisPage() {
                 templateTitle={sectionDescs.template_local_search_title}
                 templateDesc={sectionDescs.template_local_search_description}
               />
-              <LocalSearchTab
+              <LocalSearchScreenshots
                 data={analysis.localSearchData}
                 analysisId={id}
                 onUpdate={(data) => setAnalysis(prev => prev ? { ...prev, localSearchData: data } : prev)}
+              />
+              <LocalSearchCharts
+                data={analysis.localSearchData}
+                analysisId={id}
+                onUpdate={(data) => setAnalysis(prev => prev ? { ...prev, localSearchData: { ...prev.localSearchData, ...data } } : prev)}
+                sectionDescs={sectionDescs}
+                onSaveDescs={(updates) => setSectionDescs(prev => ({ ...prev, ...updates }))}
               />
             </div>
           )}
@@ -2149,13 +2157,15 @@ function KeywordsTab({ data, sectionDescs, onSaveDescs }: { data: KeywordData; s
 
 // ── Static data for Local Search charts ──
 
+const RANK_COLORS = ['#4285F4', '#34A853', '#FBBC05', '#E4405F', '#9B59B6', '#2D8BC9', '#6366F1', '#14B8A6', '#F97316', '#EC4899'];
+
 const REFERRAL_SOURCES = [
-  { name: 'Google Search', value: 46, color: '#4285F4' },
-  { name: 'Google Maps', value: 22, color: '#34A853' },
-  { name: 'Insurance Directory', value: 14, color: '#FBBC05' },
-  { name: 'Psychology Today', value: 10, color: '#2D8BC9' },
-  { name: 'Referral / Word of Mouth', value: 5, color: '#9B59B6' },
-  { name: 'Social Media', value: 3, color: '#E4405F' },
+  { name: 'Google Search', value: 46 },
+  { name: 'Google Maps', value: 22 },
+  { name: 'Insurance Directory', value: 14 },
+  { name: 'Psychology Today', value: 10 },
+  { name: 'Referral / Word of Mouth', value: 5 },
+  { name: 'Social Media', value: 3 },
 ];
 
 const SEARCH_TREND_DATA = [
@@ -2167,7 +2177,7 @@ const SEARCH_TREND_DATA = [
   { month: 'Mar', googleSearch: 82, googleMaps: 42, direct: 15 },
 ];
 
-function LocalSearchTab({ data, analysisId, onUpdate }: {
+function LocalSearchScreenshots({ data, analysisId, onUpdate }: {
   data: LocalSearchData | null;
   analysisId: string;
   onUpdate: (data: LocalSearchData) => void;
@@ -2220,47 +2230,217 @@ function LocalSearchTab({ data, analysisId, onUpdate }: {
   }
 
   return (
+    <div className="bg-white rounded-lg border border-gray-200 p-8">
+      <h2 className="text-lg font-semibold text-brand-charcoal mb-1">Search Result Screenshots</h2>
+      <p className="text-sm text-gray-500 mb-6">Upload screenshots showing how your practice appears in Google search results.</p>
+
+      <label className={`flex flex-col items-center justify-center border-2 border-dashed rounded-lg p-8 cursor-pointer transition-colors ${uploading ? 'border-brand-sky bg-brand-sky/5' : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'}`}>
+        <input
+          type="file"
+          accept="image/png,image/jpeg,image/webp"
+          className="hidden"
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            if (file) handleUpload(file);
+            e.target.value = '';
+          }}
+          disabled={uploading}
+        />
+        {uploading ? (
+          <p className="text-sm text-brand-sky">Uploading...</p>
+        ) : (
+          <>
+            <Upload className="w-8 h-8 text-gray-300 mb-2" />
+            <p className="text-sm text-gray-500">Drop an image here or click to upload</p>
+            <p className="text-xs text-gray-400 mt-1">PNG, JPG, or WebP up to 5MB</p>
+          </>
+        )}
+      </label>
+
+      {screenshots.length > 0 && (
+        <div className="mt-6 space-y-4">
+          {screenshots.map((shot, i) => (
+            <div key={i} className="relative border border-gray-100 rounded-lg overflow-hidden">
+              <img src={shot.url} alt={shot.caption || 'Search result screenshot'} className="w-full" />
+              <button
+                onClick={() => removeScreenshot(i)}
+                className="absolute top-2 right-2 w-7 h-7 bg-white/90 hover:bg-white rounded-full flex items-center justify-center shadow-sm transition-colors"
+              >
+                <X className="w-4 h-4 text-gray-500" />
+              </button>
+              <div className="p-3 bg-gray-50 border-t border-gray-100">
+                {editingCaption === i ? (
+                  <div className="flex gap-2">
+                    <input
+                      value={captionText}
+                      onChange={(e) => setCaptionText(e.target.value)}
+                      className="flex-1 text-sm border border-gray-200 rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-brand-sky"
+                      placeholder="Add a caption..."
+                      autoFocus
+                    />
+                    <button onClick={() => saveCaption(i)} className="text-xs font-medium text-white bg-brand-charcoal-light px-3 py-1 rounded hover:bg-brand-charcoal transition-colors">Save</button>
+                    <button onClick={() => setEditingCaption(null)} className="text-xs text-gray-400 hover:text-gray-600">Cancel</button>
+                  </div>
+                ) : (
+                  <p
+                    className="text-sm text-gray-500 cursor-pointer hover:text-gray-700"
+                    onClick={() => { setEditingCaption(i); setCaptionText(shot.caption); }}
+                  >
+                    {shot.caption || 'Click to add a caption...'}
+                  </p>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function LocalSearchCharts({ data, analysisId, onUpdate, sectionDescs, onSaveDescs }: {
+  data: LocalSearchData | null;
+  analysisId: string;
+  onUpdate: (data: Partial<LocalSearchData>) => void;
+  sectionDescs: Record<string, string>;
+  onSaveDescs: (updates: Record<string, string>) => void;
+}) {
+  const [sources, setSources] = useState<{ name: string; value: number }[]>(data?.referralSources || REFERRAL_SOURCES);
+  const [editing, setEditing] = useState(false);
+  const [editSources, setEditSources] = useState(sources);
+
+  function colorFor(index: number) {
+    return RANK_COLORS[index % RANK_COLORS.length];
+  }
+
+  function startEdit() {
+    setEditSources(sources.map(s => ({ ...s })));
+    setEditing(true);
+  }
+
+  function updateSource(index: number, field: 'name' | 'value', val: string) {
+    setEditSources(prev => prev.map((s, i) => i === index
+      ? { ...s, [field]: field === 'value' ? (parseInt(val) || 0) : val }
+      : s
+    ));
+  }
+
+  function addSource() {
+    setEditSources(prev => [...prev, { name: '', value: 0 }]);
+  }
+
+  function removeSource(index: number) {
+    setEditSources(prev => prev.filter((_, i) => i !== index));
+  }
+
+  async function save() {
+    const filtered = editSources.filter(s => s.name.trim()).sort((a, b) => b.value - a.value);
+    setSources(filtered);
+    setEditing(false);
+    const localSearchData = { ...data, referralSources: filtered };
+    onUpdate({ referralSources: filtered });
+    await fetch(`/api/analysis/${analysisId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ localSearchData }),
+    });
+  }
+
+  return (
     <div className="space-y-3">
       {/* How Clients Find Therapists — Donut Chart */}
       <div className="bg-white rounded-lg border border-gray-200 p-8">
-        <h2 className="text-lg font-semibold text-brand-charcoal mb-1">How Clients Find Therapists</h2>
-        <p className="text-sm text-gray-500 mb-6">National average breakdown of how therapy clients discover their provider online.</p>
-        <div className="flex items-center gap-8">
-          <div className="w-56 h-56 shrink-0">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={REFERRAL_SOURCES}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={55}
-                  outerRadius={85}
-                  dataKey="value"
-                  stroke="none"
-                >
-                  {REFERRAL_SOURCES.map((entry, i) => (
-                    <Cell key={i} fill={entry.color} />
-                  ))}
-                </Pie>
-              </PieChart>
-            </ResponsiveContainer>
-          </div>
-          <div className="flex-1 space-y-2.5">
-            {REFERRAL_SOURCES.map((source, i) => (
+        <EditableHeading
+          title="How Clients Find Therapists"
+          titleKey="local_search_referral_title"
+          subtitle="National average breakdown of how therapy clients discover their provider online."
+          subtitleKey="local_search_referral_subtitle"
+          sectionDescs={sectionDescs}
+          onSaveDescs={onSaveDescs}
+        />
+        {!editing && (
+          <button onClick={startEdit} className="text-[10px] text-gray-400 hover:text-gray-600 transition-colors cursor-pointer mb-4">Edit data</button>
+        )}
+
+        {editing ? (
+          <div className="space-y-3">
+            {editSources.map((source, i) => (
               <div key={i} className="flex items-center gap-3">
-                <div className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: source.color }} />
-                <span className="text-sm text-brand-charcoal flex-1">{source.name}</span>
-                <span className="text-sm font-semibold text-brand-charcoal">{source.value}%</span>
+                <div className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: colorFor(i) }} />
+                <input
+                  value={source.name}
+                  onChange={(e) => updateSource(i, 'name', e.target.value)}
+                  className="flex-1 text-sm border border-gray-200 rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-brand-sky"
+                  placeholder="Source name"
+                />
+                <div className="flex items-center gap-1">
+                  <input
+                    value={source.value}
+                    onChange={(e) => updateSource(i, 'value', e.target.value)}
+                    className="w-16 text-sm text-right border border-gray-200 rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-brand-sky"
+                    type="number"
+                    min="0"
+                    max="100"
+                  />
+                  <span className="text-sm text-gray-400">%</span>
+                </div>
+                <button onClick={() => removeSource(i)} className="text-gray-300 hover:text-gray-500">
+                  <X className="w-4 h-4" />
+                </button>
               </div>
             ))}
+            <div className="flex items-center justify-between pt-2">
+              <button onClick={addSource} className="text-xs text-brand-sky hover:text-brand-sky-vivid transition-colors">+ Add source</button>
+              <div className="flex gap-2">
+                <button onClick={() => setEditing(false)} className="px-3 py-1.5 text-xs text-gray-400 hover:text-gray-600">Cancel</button>
+                <button onClick={save} className="px-3 py-1.5 text-xs font-medium bg-brand-charcoal-light text-white rounded-md hover:bg-brand-charcoal transition-colors">Save</button>
+              </div>
+            </div>
           </div>
-        </div>
+        ) : (
+          <div className="flex items-center gap-8">
+            <div className="w-56 h-56 shrink-0">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={sources}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={55}
+                    outerRadius={85}
+                    dataKey="value"
+                    stroke="none"
+                  >
+                    {sources.map((_, i) => (
+                      <Cell key={i} fill={colorFor(i)} />
+                    ))}
+                  </Pie>
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+            <div className="flex-1 space-y-2.5">
+              {sources.map((source, i) => (
+                <div key={i} className="flex items-center gap-3">
+                  <div className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: colorFor(i) }} />
+                  <span className="text-sm text-brand-charcoal flex-1">{source.name}</span>
+                  <span className="text-sm font-semibold text-brand-charcoal">{source.value}%</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Search Trends — Line Chart */}
       <div className="bg-white rounded-lg border border-gray-200 p-8">
-        <h2 className="text-lg font-semibold text-brand-charcoal mb-1">Local Search Trends</h2>
-        <p className="text-sm text-gray-500 mb-6">How visitors are finding therapy practices over the last 6 months (industry average).</p>
+        <EditableHeading
+          title="Local Search Trends"
+          titleKey="local_search_trends_title"
+          subtitle="How visitors are finding therapy practices over the last 6 months (industry average)."
+          subtitleKey="local_search_trends_subtitle"
+          sectionDescs={sectionDescs}
+          onSaveDescs={onSaveDescs}
+        />
         <div className="h-64">
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={SEARCH_TREND_DATA}>
@@ -2276,75 +2456,6 @@ function LocalSearchTab({ data, analysisId, onUpdate }: {
             </LineChart>
           </ResponsiveContainer>
         </div>
-      </div>
-
-      {/* Search Result Screenshots */}
-      <div className="bg-white rounded-lg border border-gray-200 p-8">
-        <h2 className="text-lg font-semibold text-brand-charcoal mb-1">Search Result Screenshots</h2>
-        <p className="text-sm text-gray-500 mb-6">Upload screenshots showing how your practice appears in Google search results.</p>
-
-        {/* Upload area */}
-        <label className={`flex flex-col items-center justify-center border-2 border-dashed rounded-lg p-8 cursor-pointer transition-colors ${uploading ? 'border-brand-sky bg-brand-sky/5' : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'}`}>
-          <input
-            type="file"
-            accept="image/png,image/jpeg,image/webp"
-            className="hidden"
-            onChange={(e) => {
-              const file = e.target.files?.[0];
-              if (file) handleUpload(file);
-              e.target.value = '';
-            }}
-            disabled={uploading}
-          />
-          {uploading ? (
-            <p className="text-sm text-brand-sky">Uploading...</p>
-          ) : (
-            <>
-              <Upload className="w-8 h-8 text-gray-300 mb-2" />
-              <p className="text-sm text-gray-500">Drop an image here or click to upload</p>
-              <p className="text-xs text-gray-400 mt-1">PNG, JPG, or WebP up to 5MB</p>
-            </>
-          )}
-        </label>
-
-        {/* Uploaded screenshots */}
-        {screenshots.length > 0 && (
-          <div className="mt-6 space-y-4">
-            {screenshots.map((shot, i) => (
-              <div key={i} className="relative border border-gray-100 rounded-lg overflow-hidden">
-                <img src={shot.url} alt={shot.caption || 'Search result screenshot'} className="w-full" />
-                <button
-                  onClick={() => removeScreenshot(i)}
-                  className="absolute top-2 right-2 w-7 h-7 bg-white/90 hover:bg-white rounded-full flex items-center justify-center shadow-sm transition-colors"
-                >
-                  <X className="w-4 h-4 text-gray-500" />
-                </button>
-                <div className="p-3 bg-gray-50 border-t border-gray-100">
-                  {editingCaption === i ? (
-                    <div className="flex gap-2">
-                      <input
-                        value={captionText}
-                        onChange={(e) => setCaptionText(e.target.value)}
-                        className="flex-1 text-sm border border-gray-200 rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-brand-sky"
-                        placeholder="Add a caption..."
-                        autoFocus
-                      />
-                      <button onClick={() => saveCaption(i)} className="text-xs font-medium text-white bg-brand-charcoal-light px-3 py-1 rounded hover:bg-brand-charcoal transition-colors">Save</button>
-                      <button onClick={() => setEditingCaption(null)} className="text-xs text-gray-400 hover:text-gray-600">Cancel</button>
-                    </div>
-                  ) : (
-                    <p
-                      className="text-sm text-gray-500 cursor-pointer hover:text-gray-700"
-                      onClick={() => { setEditingCaption(i); setCaptionText(shot.caption); }}
-                    >
-                      {shot.caption || 'Click to add a caption...'}
-                    </p>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
       </div>
     </div>
   );
