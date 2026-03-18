@@ -920,7 +920,7 @@ function SectionHero({
   return (
     <div className="bg-white rounded-lg border border-gray-200 px-8 py-10 flex gap-8">
       {/* Score — 1/3 */}
-      <div className="w-1/3 flex flex-col justify-center border-r border-gray-100 pr-8">
+      <div className="w-1/3 flex flex-col justify-center border-r border-gray-100 mx-auto px-8">
         {riskLevel ? (
           <span className={`text-2xl font-bold ${
             riskLevel === 'Moderate' ? 'text-brand-gold' :
