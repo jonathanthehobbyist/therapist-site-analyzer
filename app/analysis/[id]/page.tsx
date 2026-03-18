@@ -608,7 +608,7 @@ export default function AnalysisPage() {
               <LocalSearchCharts
                 data={analysis.localSearchData}
                 analysisId={id}
-                onUpdate={(data) => setAnalysis(prev => prev ? { ...prev, localSearchData: { ...prev.localSearchData, ...data } } : prev)}
+                onUpdate={(data) => setAnalysis(prev => prev ? { ...prev, localSearchData: { screenshots: prev.localSearchData?.screenshots || [], ...prev.localSearchData, ...data } } : prev)}
                 sectionDescs={sectionDescs}
                 onSaveDescs={(updates) => setSectionDescs(prev => ({ ...prev, ...updates }))}
               />
