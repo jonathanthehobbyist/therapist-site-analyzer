@@ -35,6 +35,9 @@ export async function GET(
     pageSpeedData: analysis.pageSpeedData
       ? JSON.parse(analysis.pageSpeedData)
       : null,
+    localSearchData: analysis.localSearchData
+      ? JSON.parse(analysis.localSearchData)
+      : null,
   });
 }
 
@@ -64,11 +67,17 @@ export async function PATCH(
     'customPagespeedTitle', 'customPagespeedDesc',
     'customHipaaTitle', 'customHipaaDesc',
     'customKeywordsTitle', 'customKeywordsDesc',
+    'customLocalSearchTitle', 'customLocalSearchDesc',
   ];
   for (const field of customFields) {
     if (field in body) {
       data[field] = typeof body[field] === 'string' ? body[field] : null;
     }
+  }
+  if ('localSearchData' in body) {
+    data.localSearchData = typeof body.localSearchData === 'string'
+      ? body.localSearchData
+      : JSON.stringify(body.localSearchData);
   }
 
   try {

@@ -37,6 +37,9 @@ model Analysis {
   customHipaaDesc    String?
   customKeywordsTitle String?
   customKeywordsDesc  String?
+  customLocalSearchTitle String?
+  customLocalSearchDesc  String?
+  localSearchData    String?
   seoSummary         String?
   keywordData        String?
   pageSpeedData      String?

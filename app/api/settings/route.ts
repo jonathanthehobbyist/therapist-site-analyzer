@@ -34,6 +34,9 @@ const DEFAULTS: Record<string, string> = {
   pagespeed_mobile_score_subtitle: 'Google Lighthouse performance score for mobile.',
   pagespeed_filmstrip_title: 'Loading Timeline',
   pagespeed_filmstrip_subtitle: 'How your site loads over time on mobile — each frame shows what a visitor sees.',
+  local_search_title: 'Local Search Visibility',
+  local_search_description:
+    'Most therapy clients start their search on Google — often with phrases like "therapist near me" or "anxiety counseling [city]." This section shows how your practice appears in local search results and where your clients are coming from. Strong local search presence is one of the most effective ways to grow a therapy practice.',
   // Custom templates (pre-fill when switching to Custom mode)
   template_seo_title: '',
   template_seo_description: '',
@@ -89,7 +92,7 @@ export async function PATCH(req: NextRequest) {
   const updates: { key: string; value: string }[] = [];
 
   for (const [key, value] of Object.entries(body)) {
-    if (typeof value === 'string' && (key in DEFAULTS || key.startsWith('finding_') || key.startsWith('seo_') || key.startsWith('metric_') || key.startsWith('hipaa_') || key.startsWith('threshold_') || key.startsWith('template_') || key.startsWith('opportunities_'))) {
+    if (typeof value === 'string' && (key in DEFAULTS || key.startsWith('finding_') || key.startsWith('seo_') || key.startsWith('metric_') || key.startsWith('hipaa_') || key.startsWith('threshold_') || key.startsWith('template_') || key.startsWith('opportunities_') || key.startsWith('local_search_'))) {
       updates.push({ key, value });
     }
   }

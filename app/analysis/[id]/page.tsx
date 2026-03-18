@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { Search, AlertTriangle, Wrench, ExternalLink } from 'lucide-react';
+import { Search, AlertTriangle, Wrench, ExternalLink, Upload, X, ImageIcon } from 'lucide-react';
+import { PieChart, Pie, Cell, ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip, Legend } from 'recharts';
 
 interface FilmstripFrame {
   timing: number;
@@ -56,6 +57,9 @@ interface Analysis {
   customHipaaDesc: string | null;
   customKeywordsTitle: string | null;
   customKeywordsDesc: string | null;
+  customLocalSearchTitle: string | null;
+  customLocalSearchDesc: string | null;
+  localSearchData: LocalSearchData | null;
   seoSummary: string | null;
   keywordData: KeywordData | null;
   pageSpeedData: FullPageSpeedData | null;
@@ -89,7 +93,11 @@ interface HipaaData {
   findings: { severity: string; check: string; description: string; pageUrl: string; whyRisk: string; recommendedFix: string }[];
 }
 
-const SECTIONS = ['Overview', 'SEO', 'Page Speed', 'HIPAA Audit', 'Opportunities'] as const;
+interface LocalSearchData {
+  screenshots: { url: string; caption: string }[];
+}
+
+const SECTIONS = ['Overview', 'SEO', 'Page Speed', 'HIPAA Audit', 'Opportunities', 'Local Search'] as const;
 type Section = typeof SECTIONS[number];
 
 function letterGrade(score: number): string {
@@ -349,6 +357,11 @@ export default function AnalysisPage() {
       scoreColor: 'text-brand-charcoal',
       sublabel: 'Striking Distance Keywords',
     },
+    {
+      section: 'Local Search',
+      label: 'Local Search',
+      sublabel: 'How clients find you',
+    },
   ];
 
   return (
@@ -563,6 +576,34 @@ export default function AnalysisPage() {
                 templateDesc={sectionDescs.template_keywords_description}
               />
               {analysis.keywordData && <KeywordsTab data={analysis.keywordData} sectionDescs={sectionDescs} onSaveDescs={(updates) => setSectionDescs(prev => ({ ...prev, ...updates }))} />}
+            </div>
+          )}
+
+          {/* Local Search section */}
+          {activeSection === 'Local Search' && (
+            <div className="space-y-3">
+              <SectionHero
+                scoreLabel="Local Search"
+                scoreSubtext="How clients discover your practice"
+                title={sectionDescs.local_search_title || 'Local Search Visibility'}
+                titleKey="local_search_title"
+                settingKey="local_search_description"
+                description={sectionDescs.local_search_description || ''}
+                onSave={(updates) => setSectionDescs(prev => ({ ...prev, ...updates }))}
+                analysisId={id}
+                customTitle={analysis.customLocalSearchTitle}
+                customDesc={analysis.customLocalSearchDesc}
+                customTitleField="customLocalSearchTitle"
+                customDescField="customLocalSearchDesc"
+                onCustomSave={(t, d) => setAnalysis(prev => prev ? { ...prev, customLocalSearchTitle: t, customLocalSearchDesc: d } : prev)}
+                templateTitle={sectionDescs.template_local_search_title}
+                templateDesc={sectionDescs.template_local_search_description}
+              />
+              <LocalSearchTab
+                data={analysis.localSearchData}
+                analysisId={id}
+                onUpdate={(data) => setAnalysis(prev => prev ? { ...prev, localSearchData: data } : prev)}
+              />
             </div>
           )}
         </div>
@@ -2102,6 +2143,209 @@ function KeywordsTab({ data, sectionDescs, onSaveDescs }: { data: KeywordData; s
           </table>
         </div>
       )}
+    </div>
+  );
+}
+
+// ── Static data for Local Search charts ──
+
+const REFERRAL_SOURCES = [
+  { name: 'Google Search', value: 46, color: '#4285F4' },
+  { name: 'Google Maps', value: 22, color: '#34A853' },
+  { name: 'Insurance Directory', value: 14, color: '#FBBC05' },
+  { name: 'Psychology Today', value: 10, color: '#2D8BC9' },
+  { name: 'Referral / Word of Mouth', value: 5, color: '#9B59B6' },
+  { name: 'Social Media', value: 3, color: '#E4405F' },
+];
+
+const SEARCH_TREND_DATA = [
+  { month: 'Oct', googleSearch: 62, googleMaps: 28, direct: 10 },
+  { month: 'Nov', googleSearch: 58, googleMaps: 31, direct: 11 },
+  { month: 'Dec', googleSearch: 45, googleMaps: 25, direct: 8 },
+  { month: 'Jan', googleSearch: 70, googleMaps: 35, direct: 12 },
+  { month: 'Feb', googleSearch: 75, googleMaps: 38, direct: 14 },
+  { month: 'Mar', googleSearch: 82, googleMaps: 42, direct: 15 },
+];
+
+function LocalSearchTab({ data, analysisId, onUpdate }: {
+  data: LocalSearchData | null;
+  analysisId: string;
+  onUpdate: (data: LocalSearchData) => void;
+}) {
+  const [uploading, setUploading] = useState(false);
+  const [screenshots, setScreenshots] = useState<{ url: string; caption: string }[]>(data?.screenshots || []);
+  const [editingCaption, setEditingCaption] = useState<number | null>(null);
+  const [captionText, setCaptionText] = useState('');
+
+  async function handleUpload(file: File) {
+    setUploading(true);
+    try {
+      const form = new FormData();
+      form.append('file', file);
+      form.append('analysisId', analysisId);
+      const res = await fetch('/api/upload', { method: 'POST', body: form });
+      if (!res.ok) throw new Error('Upload failed');
+      const { url } = await res.json();
+      const updated = [...screenshots, { url, caption: '' }];
+      setScreenshots(updated);
+      await saveScreenshots(updated);
+    } catch (err) {
+      console.error('Upload error:', err);
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  async function removeScreenshot(index: number) {
+    const updated = screenshots.filter((_, i) => i !== index);
+    setScreenshots(updated);
+    await saveScreenshots(updated);
+  }
+
+  async function saveCaption(index: number) {
+    const updated = screenshots.map((s, i) => i === index ? { ...s, caption: captionText } : s);
+    setScreenshots(updated);
+    setEditingCaption(null);
+    await saveScreenshots(updated);
+  }
+
+  async function saveScreenshots(updated: { url: string; caption: string }[]) {
+    const localSearchData = { screenshots: updated };
+    onUpdate(localSearchData);
+    await fetch(`/api/analysis/${analysisId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ localSearchData }),
+    });
+  }
+
+  return (
+    <div className="space-y-3">
+      {/* How Clients Find Therapists — Donut Chart */}
+      <div className="bg-white rounded-lg border border-gray-200 p-8">
+        <h2 className="text-lg font-semibold text-brand-charcoal mb-1">How Clients Find Therapists</h2>
+        <p className="text-sm text-gray-500 mb-6">National average breakdown of how therapy clients discover their provider online.</p>
+        <div className="flex items-center gap-8">
+          <div className="w-56 h-56 shrink-0">
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie
+                  data={REFERRAL_SOURCES}
+                  cx="50%"
+                  cy="50%"
+                  innerRadius={55}
+                  outerRadius={85}
+                  dataKey="value"
+                  stroke="none"
+                >
+                  {REFERRAL_SOURCES.map((entry, i) => (
+                    <Cell key={i} fill={entry.color} />
+                  ))}
+                </Pie>
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
+          <div className="flex-1 space-y-2.5">
+            {REFERRAL_SOURCES.map((source, i) => (
+              <div key={i} className="flex items-center gap-3">
+                <div className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: source.color }} />
+                <span className="text-sm text-brand-charcoal flex-1">{source.name}</span>
+                <span className="text-sm font-semibold text-brand-charcoal">{source.value}%</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Search Trends — Line Chart */}
+      <div className="bg-white rounded-lg border border-gray-200 p-8">
+        <h2 className="text-lg font-semibold text-brand-charcoal mb-1">Local Search Trends</h2>
+        <p className="text-sm text-gray-500 mb-6">How visitors are finding therapy practices over the last 6 months (industry average).</p>
+        <div className="h-64">
+          <ResponsiveContainer width="100%" height="100%">
+            <LineChart data={SEARCH_TREND_DATA}>
+              <XAxis dataKey="month" tick={{ fontSize: 12, fill: '#6B7280' }} axisLine={false} tickLine={false} />
+              <YAxis tick={{ fontSize: 12, fill: '#6B7280' }} axisLine={false} tickLine={false} width={30} />
+              <Tooltip
+                contentStyle={{ borderRadius: '8px', border: '1px solid #E5E7EB', fontSize: '13px' }}
+              />
+              <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: '13px', paddingTop: '8px' }} />
+              <Line type="monotone" dataKey="googleSearch" name="Google Search" stroke="#4285F4" strokeWidth={2} dot={{ r: 3 }} />
+              <Line type="monotone" dataKey="googleMaps" name="Google Maps" stroke="#34A853" strokeWidth={2} dot={{ r: 3 }} />
+              <Line type="monotone" dataKey="direct" name="Direct" stroke="#9B59B6" strokeWidth={2} dot={{ r: 3 }} />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
+
+      {/* Search Result Screenshots */}
+      <div className="bg-white rounded-lg border border-gray-200 p-8">
+        <h2 className="text-lg font-semibold text-brand-charcoal mb-1">Search Result Screenshots</h2>
+        <p className="text-sm text-gray-500 mb-6">Upload screenshots showing how your practice appears in Google search results.</p>
+
+        {/* Upload area */}
+        <label className={`flex flex-col items-center justify-center border-2 border-dashed rounded-lg p-8 cursor-pointer transition-colors ${uploading ? 'border-brand-sky bg-brand-sky/5' : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'}`}>
+          <input
+            type="file"
+            accept="image/png,image/jpeg,image/webp"
+            className="hidden"
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (file) handleUpload(file);
+              e.target.value = '';
+            }}
+            disabled={uploading}
+          />
+          {uploading ? (
+            <p className="text-sm text-brand-sky">Uploading...</p>
+          ) : (
+            <>
+              <Upload className="w-8 h-8 text-gray-300 mb-2" />
+              <p className="text-sm text-gray-500">Drop an image here or click to upload</p>
+              <p className="text-xs text-gray-400 mt-1">PNG, JPG, or WebP up to 5MB</p>
+            </>
+          )}
+        </label>
+
+        {/* Uploaded screenshots */}
+        {screenshots.length > 0 && (
+          <div className="mt-6 space-y-4">
+            {screenshots.map((shot, i) => (
+              <div key={i} className="relative border border-gray-100 rounded-lg overflow-hidden">
+                <img src={shot.url} alt={shot.caption || 'Search result screenshot'} className="w-full" />
+                <button
+                  onClick={() => removeScreenshot(i)}
+                  className="absolute top-2 right-2 w-7 h-7 bg-white/90 hover:bg-white rounded-full flex items-center justify-center shadow-sm transition-colors"
+                >
+                  <X className="w-4 h-4 text-gray-500" />
+                </button>
+                <div className="p-3 bg-gray-50 border-t border-gray-100">
+                  {editingCaption === i ? (
+                    <div className="flex gap-2">
+                      <input
+                        value={captionText}
+                        onChange={(e) => setCaptionText(e.target.value)}
+                        className="flex-1 text-sm border border-gray-200 rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-brand-sky"
+                        placeholder="Add a caption..."
+                        autoFocus
+                      />
+                      <button onClick={() => saveCaption(i)} className="text-xs font-medium text-white bg-brand-charcoal-light px-3 py-1 rounded hover:bg-brand-charcoal transition-colors">Save</button>
+                      <button onClick={() => setEditingCaption(null)} className="text-xs text-gray-400 hover:text-gray-600">Cancel</button>
+                    </div>
+                  ) : (
+                    <p
+                      className="text-sm text-gray-500 cursor-pointer hover:text-gray-700"
+                      onClick={() => { setEditingCaption(i); setCaptionText(shot.caption); }}
+                    >
+                      {shot.caption || 'Click to add a caption...'}
+                    </p>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
