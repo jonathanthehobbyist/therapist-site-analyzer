@@ -239,6 +239,39 @@ export async function getTopPages(siteUrl: string): Promise<TopPage[]> {
   }
 }
 
+export interface VolumeHistoryPoint {
+  date: string;
+  volume: number;
+}
+
+export async function getKeywordVolumeHistory(keyword: string, country = 'us'): Promise<VolumeHistoryPoint[]> {
+  try {
+    const dateTo = new Date().toISOString().split('T')[0];
+    const dateFrom = new Date();
+    dateFrom.setFullYear(dateFrom.getFullYear() - 10);
+    const dateFromStr = dateFrom.toISOString().split('T')[0];
+
+    const data = await ahrefsFetch('overview', {
+      keywords: keyword,
+      country,
+      output: 'json',
+      select: 'keyword,volume_monthly_history',
+      volume_monthly_date_from: dateFromStr,
+      volume_monthly_date_to: dateTo,
+    }, 'keywords-explorer') as { keywords?: { keyword: string; volume_monthly_history: { date: string; volume: number }[] }[] };
+
+    console.log(`Ahrefs volume history for "${keyword}": ${data.keywords?.[0]?.volume_monthly_history?.length ?? 0} data points`);
+
+    return (data.keywords?.[0]?.volume_monthly_history || []).map((v) => ({
+      date: v.date,
+      volume: v.volume ?? 0,
+    }));
+  } catch (err) {
+    console.error('Ahrefs volume history fetch failed:', err instanceof Error ? err.message : err);
+    return [];
+  }
+}
+
 function extractDomain(url: string): string {
   try {
     return new URL(url).hostname;

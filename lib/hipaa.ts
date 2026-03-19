@@ -126,10 +126,21 @@ export async function analyzeHipaa(pages: ScrapedPage[]): Promise<HipaaResult> {
 
   const client = new Anthropic({ apiKey });
 
-  // Build the filtered content for all pages
-  const pagesContent = pages
-    .map((page) => extractHipaaRelevantContent(page))
-    .join('\n\n===== NEXT PAGE =====\n\n');
+  // Build the filtered content for all pages, truncating each to stay within token limits
+  const MAX_CHARS_PER_PAGE = 4000;
+  const MAX_TOTAL_CHARS = 150000; // ~37K tokens, well under 200K limit with prompt
+  let totalChars = 0;
+  const pageContents: string[] = [];
+  for (const page of pages) {
+    const content = extractHipaaRelevantContent(page);
+    const truncated = content.length > MAX_CHARS_PER_PAGE
+      ? content.substring(0, MAX_CHARS_PER_PAGE) + '\n[...truncated]'
+      : content;
+    if (totalChars + truncated.length > MAX_TOTAL_CHARS) break;
+    pageContents.push(truncated);
+    totalChars += truncated.length;
+  }
+  const pagesContent = pageContents.join('\n\n===== NEXT PAGE =====\n\n');
 
   const response = await client.messages.create({
     model: 'claude-sonnet-4-20250514',

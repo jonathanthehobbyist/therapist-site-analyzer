@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { Search, AlertTriangle, Wrench, ExternalLink, Upload, X, ImageIcon } from 'lucide-react';
 import { PieChart, Pie, Cell, ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip, Legend } from 'recharts';
@@ -97,6 +97,7 @@ interface HipaaData {
 interface LocalSearchData {
   screenshots: { url: string; caption: string }[];
   referralSources?: { name: string; value: number }[];
+  searchVolumeHistory?: { date: string; volume: number }[];
 }
 
 const SECTIONS = ['Overview', 'Local Search', 'SEO', 'Page Speed', 'HIPAA Audit', 'Opportunities'] as const;
@@ -1017,10 +1018,10 @@ function SectionHero({
   const [editing, setEditing] = useState(false);
 
   const displayTitle = mode === 'custom'
-    ? (customTitle || templateTitle || title) || ''
+    ? (templateTitle || title) || ''
     : title || '';
   const displayDesc = mode === 'custom'
-    ? (customDesc || templateDesc || description) || ''
+    ? (templateDesc || description) || ''
     : description || '';
 
   const [editTitle, setEditTitle] = useState(displayTitle);
@@ -1044,13 +1045,15 @@ function SectionHero({
       });
       onSave(updates);
     } else {
-      const body: Record<string, string> = { [customTitleField]: editTitle, [customDescField]: text };
-      await fetch(`/api/analysis/${analysisId}`, {
+      const templateTitleKey = `template_${titleKey}`;
+      const templateDescKey = `template_${settingKey}`;
+      const updates: Record<string, string> = { [templateTitleKey]: editTitle, [templateDescKey]: text };
+      await fetch('/api/settings', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
+        body: JSON.stringify(updates),
       });
-      onCustomSave(editTitle, text);
+      onSave(updates);
     }
     setEditing(false);
   }
@@ -1114,7 +1117,7 @@ function SectionHero({
             />
             <div className="flex items-center justify-between mt-2">
               <span className="text-[11px] text-gray-400">
-                {mode === 'default' ? 'Saves across all analyses' : 'Saves to this analysis only'}
+                {mode === 'default' ? 'Saves default text across all analyses' : 'Saves custom template across all analyses'}
               </span>
               <div className="flex gap-2">
                 <button
@@ -2066,7 +2069,6 @@ function KeywordsTab({ data, sectionDescs, onSaveDescs }: { data: KeywordData; s
 
       {/* Empty state */}
       {(!data.strikingDistanceKeywords || data.strikingDistanceKeywords.length === 0) &&
-       (!data.topPages || data.topPages.length === 0) &&
        data.organicKeywords.length === 0 &&
        data.siteKeywords.length === 0 && (
         <div className="bg-white rounded-lg border border-gray-200 p-12 text-center">
@@ -2119,55 +2121,6 @@ function KeywordsTab({ data, sectionDescs, onSaveDescs }: { data: KeywordData; s
         </div>
       )}
 
-      {/* Top Pages */}
-      {data.topPages && data.topPages.length > 0 && (
-        <div className="bg-white rounded-lg border border-gray-200 p-8">
-          <EditableHeading
-            title="Top Pages by Traffic"
-            titleKey="opportunities_toppages_title"
-            subtitle="Your highest-traffic pages and the keywords driving visitors to them."
-            subtitleKey="opportunities_toppages_subtitle"
-            sectionDescs={sectionDescs}
-            onSaveDescs={onSaveDescs}
-          />
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="text-left text-xs text-gray-500 border-b border-gray-100">
-                  <th className="pb-2 font-medium">Page</th>
-                  <th className="pb-2 font-medium text-right">Traffic</th>
-                  <th className="pb-2 font-medium text-right">Keywords</th>
-                  <th className="pb-2 font-medium text-right">UR</th>
-                  <th className="pb-2 font-medium text-right">Ref. Domains</th>
-                  <th className="pb-2 font-medium text-right">Top Keyword</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-50">
-                {data.topPages.map((page, i) => {
-                  let shortUrl: string;
-                  try { shortUrl = new URL(page.url).pathname || '/'; } catch { shortUrl = page.url; }
-                  return (
-                    <tr key={i}>
-                      <td className="py-3 font-medium text-brand-charcoal max-w-[180px] truncate" title={page.url}>{shortUrl}</td>
-                      <td className="py-3 text-right text-gray-600">{page.traffic.toLocaleString()}</td>
-                      <td className="py-3 text-right text-gray-600">{page.keywords.toLocaleString()}</td>
-                      <td className="py-3 text-right">
-                        <span className={`font-medium ${page.urlRating >= 20 ? 'text-brand-sage-dark' : page.urlRating >= 10 ? 'text-brand-gold' : 'text-gray-400'}`}>{page.urlRating}</span>
-                      </td>
-                      <td className="py-3 text-right text-gray-600">{page.referringDomains.toLocaleString()}</td>
-                      <td className="py-3 text-right text-xs max-w-[160px] truncate" title={`${page.topKeyword} (${page.topKeywordVolume.toLocaleString()} vol/mo)`}>
-                        <span className="text-gray-600">{page.topKeyword}</span>
-                        <span className="text-gray-400 ml-1">#{page.topKeywordPosition}</span>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
-
       {/* Related Keywords from Ahrefs */}
       {data.relatedKeywords && data.relatedKeywords.length > 0 && (
         <div className="bg-white rounded-lg border border-gray-200 p-8">
@@ -2212,13 +2165,13 @@ const REFERRAL_SOURCES = [
   { name: 'Social Media', value: 3 },
 ];
 
-const SEARCH_TREND_DATA = [
-  { month: 'Oct', googleSearch: 62, googleMaps: 28, direct: 10 },
-  { month: 'Nov', googleSearch: 58, googleMaps: 31, direct: 11 },
-  { month: 'Dec', googleSearch: 45, googleMaps: 25, direct: 8 },
-  { month: 'Jan', googleSearch: 70, googleMaps: 35, direct: 12 },
-  { month: 'Feb', googleSearch: 75, googleMaps: 38, direct: 14 },
-  { month: 'Mar', googleSearch: 82, googleMaps: 42, direct: 15 },
+const SEARCH_TREND_FALLBACK = [
+  { month: 'Oct', volume: 673000 },
+  { month: 'Nov', volume: 673000 },
+  { month: 'Dec', volume: 550000 },
+  { month: 'Jan', volume: 823000 },
+  { month: 'Feb', volume: 823000 },
+  { month: 'Mar', volume: 823000 },
 ];
 
 function LocalSearchHero({ sectionDescs, onSaveDescs, analysisId, customTitle, customDesc, onCustomSave, templateTitle, templateDesc, mode }: {
@@ -2235,8 +2188,8 @@ function LocalSearchHero({ sectionDescs, onSaveDescs, analysisId, customTitle, c
   const defaultTitle = sectionDescs.local_search_title || 'Local Search Visibility';
   const defaultDesc = sectionDescs.local_search_description || '';
 
-  const displayTitle = mode === 'custom' ? (customTitle || templateTitle || defaultTitle) : defaultTitle;
-  const displayDesc = mode === 'custom' ? (customDesc || templateDesc || defaultDesc) : defaultDesc;
+  const displayTitle = mode === 'custom' ? (templateTitle || defaultTitle) : defaultTitle;
+  const displayDesc = mode === 'custom' ? (templateDesc || defaultDesc) : defaultDesc;
 
   const [editTitle, setEditTitle] = useState(displayTitle);
   const [editDesc, setEditDesc] = useState(displayDesc);
@@ -2254,13 +2207,12 @@ function LocalSearchHero({ sectionDescs, onSaveDescs, analysisId, customTitle, c
         body: JSON.stringify(updates),
       });
     } else {
-      const t = editTitle.trim() || null;
-      const d = editDesc.trim() || null;
-      onCustomSave(t, d);
-      await fetch(`/api/analysis/${analysisId}`, {
+      const updates = { template_local_search_title: editTitle, template_local_search_description: editDesc };
+      onSaveDescs(updates);
+      await fetch('/api/settings', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ customLocalSearchTitle: t, customLocalSearchDesc: d }),
+        body: JSON.stringify(updates),
       });
     }
     setEditing(false);
@@ -2422,7 +2374,32 @@ function LocalSearchCharts({ data, analysisId, onUpdate, sectionDescs, onSaveDes
   sectionDescs: Record<string, string>;
   onSaveDescs: (updates: Record<string, string>) => void;
 }) {
-  const [sources, setSources] = useState<{ name: string; value: number }[]>(data?.referralSources || REFERRAL_SOURCES);
+  const trendData = useMemo(() => {
+    const history = data?.searchVolumeHistory;
+    if (history && history.length > 0) {
+      const tenYearsAgo = new Date();
+      tenYearsAgo.setFullYear(tenYearsAgo.getFullYear() - 10);
+      return history
+        .filter((point) => new Date(point.date) >= tenYearsAgo)
+        .map((point) => {
+          const d = new Date(point.date);
+          const isJan = d.getMonth() === 0;
+          return { month: isJan ? String(d.getFullYear()) : '', volume: point.volume };
+        });
+    }
+    return SEARCH_TREND_FALLBACK;
+  }, [data?.searchVolumeHistory]);
+
+  const globalSources = useMemo(() => {
+    try {
+      const raw = sectionDescs.local_search_referral_data;
+      if (raw) return JSON.parse(raw) as { name: string; value: number }[];
+    } catch { /* ignore */ }
+    return null;
+  }, [sectionDescs.local_search_referral_data]);
+
+  const [sources, setSources] = useState<{ name: string; value: number }[]>(globalSources || REFERRAL_SOURCES);
+  useEffect(() => { if (globalSources) setSources(globalSources); }, [globalSources]);
   const [editing, setEditing] = useState(false);
   const [editSources, setEditSources] = useState(sources);
 
@@ -2454,12 +2431,12 @@ function LocalSearchCharts({ data, analysisId, onUpdate, sectionDescs, onSaveDes
     const filtered = editSources.filter(s => s.name.trim()).sort((a, b) => b.value - a.value);
     setSources(filtered);
     setEditing(false);
-    const localSearchData = { ...data, referralSources: filtered };
-    onUpdate({ referralSources: filtered });
-    await fetch(`/api/analysis/${analysisId}`, {
+    const updates = { local_search_referral_data: JSON.stringify(filtered) };
+    onSaveDescs(updates);
+    await fetch('/api/settings', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ localSearchData }),
+      body: JSON.stringify(updates),
     });
   }
 
@@ -2548,28 +2525,26 @@ function LocalSearchCharts({ data, analysisId, onUpdate, sectionDescs, onSaveDes
         )}
       </div>
 
-      {/* Search Trends — Line Chart */}
+      {/* Search Volume Trends — Line Chart */}
       <div className="bg-white rounded-lg border border-gray-200 p-8">
         <EditableHeading
-          title="Local Search Trends"
+          title="Search Volume: &ldquo;Therapy&rdquo;"
           titleKey="local_search_trends_title"
-          subtitle="How visitors are finding therapy practices over the last 6 months (industry average)."
+          subtitle="Monthly U.S. search volume for the keyword &ldquo;therapy&rdquo; (source: Ahrefs)."
           subtitleKey="local_search_trends_subtitle"
           sectionDescs={sectionDescs}
           onSaveDescs={onSaveDescs}
         />
         <div className="h-64">
           <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={SEARCH_TREND_DATA}>
-              <XAxis dataKey="month" tick={{ fontSize: 12, fill: '#6B7280' }} axisLine={false} tickLine={false} />
-              <YAxis tick={{ fontSize: 12, fill: '#6B7280' }} axisLine={false} tickLine={false} width={30} />
+            <LineChart data={trendData}>
+              <XAxis dataKey="month" tick={{ fontSize: 11, fill: '#6B7280' }} axisLine={false} tickLine={false} interval={0} />
+              <YAxis tick={{ fontSize: 12, fill: '#6B7280' }} axisLine={false} tickLine={false} width={50} tickFormatter={(v: number) => v >= 1000 ? `${(v / 1000).toFixed(0)}k` : String(v)} />
               <Tooltip
                 contentStyle={{ borderRadius: '8px', border: '1px solid #E5E7EB', fontSize: '13px' }}
+                formatter={(value) => [Number(value).toLocaleString(), 'Search Volume']}
               />
-              <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: '13px', paddingTop: '8px' }} />
-              <Line type="monotone" dataKey="googleSearch" name="Google Search" stroke="#4285F4" strokeWidth={2} dot={{ r: 3 }} />
-              <Line type="monotone" dataKey="googleMaps" name="Google Maps" stroke="#34A853" strokeWidth={2} dot={{ r: 3 }} />
-              <Line type="monotone" dataKey="direct" name="Direct" stroke="#9B59B6" strokeWidth={2} dot={{ r: 3 }} />
+              <Line type="monotone" dataKey="volume" name="Search Volume" stroke="#4285F4" strokeWidth={2} dot={{ r: 3 }} />
             </LineChart>
           </ResponsiveContainer>
         </div>

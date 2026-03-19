@@ -1,7 +1,7 @@
 import { prisma } from './db';
 import { scrapeSite } from './scraper';
 import { analyzeHipaa, HipaaFinding } from './hipaa';
-import { getAhrefsData, getAhrefsOrganicKeywords, getAhrefsRelatedKeywords, getStrikingDistanceKeywords, getTopPages } from './ahrefs';
+import { getAhrefsData, getAhrefsOrganicKeywords, getAhrefsRelatedKeywords, getStrikingDistanceKeywords, getTopPages, getKeywordVolumeHistory } from './ahrefs';
 import { extractSiteKeywords, KeywordData } from './keywords';
 import { getPageSpeedData, getFullPageSpeedData } from './pagespeed';
 import { buildSeoComparison } from './seo-comparison';
@@ -105,6 +105,12 @@ export async function runAnalysis(analysisId: string): Promise<void> {
     console.log(`[${analysisId}] Got ${topPages.length} top pages`);
     const keywordData: KeywordData = { siteKeywords: [], organicKeywords, relatedKeywords: [], strikingDistanceKeywords, topPages };
 
+    // 8b. Fetch search volume history for "therapy"
+    await setProgress(analysisId, 90, 'Fetching search volume trends...');
+    console.log(`[${analysisId}] Fetching volume history for "therapy"...`);
+    const searchVolumeHistory = await getKeywordVolumeHistory('therapy');
+    console.log(`[${analysisId}] Got ${searchVolumeHistory.length} volume history points`);
+
     // 9. Generate summary (mix of SEO + HIPAA)
     const seoSummary = generateSummary(hygiene.score, hygiene.findings, hipaa.riskLevel, hipaa.findings);
 
@@ -127,6 +133,9 @@ export async function runAnalysis(analysisId: string): Promise<void> {
         seoSummary,
         keywordData: JSON.stringify(keywordData),
         pageSpeedData: JSON.stringify(fullPageSpeed),
+        localSearchData: searchVolumeHistory.length > 0
+          ? JSON.stringify({ screenshots: [], searchVolumeHistory })
+          : undefined,
       },
     });
 

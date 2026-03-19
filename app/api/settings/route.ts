@@ -46,6 +46,9 @@ const DEFAULTS: Record<string, string> = {
   template_hipaa_description: '',
   template_keywords_title: '',
   template_keywords_description: '',
+  template_local_search_title: '',
+  template_local_search_description: '',
+  local_search_referral_data: '',
   // Score thresholds
   threshold_score_good: '90',
   threshold_score_warn: '50',

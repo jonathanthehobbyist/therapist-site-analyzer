@@ -75,9 +75,13 @@ export async function scrapeSite(
       (u) => normalizeUrl(u) !== normalizeUrl(siteUrl)
     );
 
+    // Cap at 20 pages to avoid token limits when sending to Claude
+    const MAX_PAGES = 20;
+    const urlsToScrape = uniqueUrls.slice(0, MAX_PAGES - 1);
+
     // Scrape nav pages sequentially (memory safety)
     const pages: ScrapedPage[] = [homepage];
-    for (const url of uniqueUrls) {
+    for (const url of urlsToScrape) {
       try {
         const page = await scrapePage(browser, url);
         pages.push(page);
