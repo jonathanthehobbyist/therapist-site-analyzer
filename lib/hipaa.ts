@@ -142,13 +142,34 @@ export async function analyzeHipaa(pages: ScrapedPage[]): Promise<HipaaResult> {
   }
   const pagesContent = pageContents.join('\n\n===== NEXT PAGE =====\n\n');
 
+  const REQUIRED_CHECKS = [
+    { id: 'ssl_tls', label: 'SSL / TLS Encryption', passDesc: 'The site enforces HTTPS across all pages.' },
+    { id: 'contact_form', label: 'Contact / Intake Form Security', passDesc: 'No unprotected contact or intake forms were detected.' },
+    { id: 'form_provider', label: 'Form Provider Compliance', passDesc: 'No non-HIPAA-compliant form providers (Wufoo, Typeform, Google Forms) were detected.' },
+    { id: 'analytics_on_forms', label: 'Analytics on Form Pages', passDesc: 'No analytics trackers were found on pages containing forms.' },
+    { id: 'facebook_pixel', label: 'Meta / Facebook Pixel', passDesc: 'No Meta/Facebook tracking pixel was detected on the site.' },
+    { id: 'chat_widgets', label: 'Third-Party Chat Widgets', passDesc: 'No non-HIPAA-compliant chat widgets (Intercom, Drift, Tidio, HubSpot) were detected.' },
+    { id: 'scheduling_tools', label: 'Scheduling Tool Compliance', passDesc: 'No non-HIPAA-compliant scheduling tools were detected.' },
+    { id: 'session_recording', label: 'Session Recording Tools', passDesc: 'No session recording tools (Hotjar, FullStory, Clarity) were detected.' },
+    { id: 'hipaa_tools', label: 'HIPAA-Compliant Tools', passDesc: 'No HIPAA-compliant practice management tools were detected (e.g. SimplePractice, TherapyNotes, Jane App).' },
+    { id: 'privacy_policy', label: 'Privacy Policy', passDesc: 'A privacy policy was found on the site.' },
+    { id: 'privacy_policy_hipaa', label: 'Privacy Policy HIPAA Language', passDesc: 'The privacy policy references HIPAA or protected health information.' },
+  ];
+
+  const checklistJson = REQUIRED_CHECKS.map(c => `  - id: "${c.id}", label: "${c.label}"`).join('\n');
+
   const response = await client.messages.create({
     model: 'claude-sonnet-4-20250514',
     max_tokens: 4096,
     messages: [
       {
         role: 'user',
-        content: `You are a HIPAA compliance auditor for therapist/healthcare websites. Analyze the following extracted website data and identify potential HIPAA risk findings.
+        content: `You are a HIPAA compliance auditor for therapist/healthcare websites. Analyze the following extracted website data and report on EVERY check in the required checklist below.
+
+IMPORTANT: You MUST return a finding for EVERY check ID listed below — no exceptions. If you find no issue for a check, return it with severity "pass". Do NOT skip any check. Do NOT invent check IDs outside this list.
+
+REQUIRED CHECKLIST (report on ALL of these):
+${checklistJson}
 
 IMPORTANT TONE GUIDELINES:
 - Use soft, non-alarming language throughout. You are advising, not accusing.
@@ -158,32 +179,34 @@ IMPORTANT TONE GUIDELINES:
 - Remember: these are small practice owners, not security engineers. Be helpful and clear, not scary.
 
 For each finding, provide:
-- severity: "high", "medium", "low", or "pass" (pass = compliant item found)
-- check: short label (e.g. "Google Analytics on Form Page")
-- description: what was detected, using soft language (e.g. "We detected what looks like a GA4 script on the /contact page, which appears to contain a patient intake form")
-- pageUrl: which page URL the finding relates to
-- whyRisk: 1-2 sentence explanation of why this could be a HIPAA concern (use "may" and "could", not "violates" or "is a violation")
-- recommendedFix: actionable fix suggestion
+- severity: "high", "medium", "low", or "pass"
+- id: the exact check ID from the list above
+- check: the label from the list above
+- description: what was detected (or a brief note that nothing was found for "pass" items)
+- pageUrl: which page URL the finding relates to (use "" for site-wide or pass items)
+- whyRisk: 1-2 sentence explanation of why this could be a HIPAA concern (leave brief for "pass" items)
+- recommendedFix: actionable fix suggestion (leave brief for "pass" items, e.g. "No action needed.")
 
-Check for these specific issues:
-1. Contact/intake forms with no encryption notice or BAA disclosure (HIGH)
-2. Forms using non-HIPAA-compliant providers: Gravity Forms on non-HIPAA host, Wufoo, Typeform, Google Forms (HIGH)
-3. Google Analytics/GA4 on pages with contact/intake forms (HIGH)
-4. Meta/Facebook Pixel on any page (HIGH)
-5. SSL/TLS not enforced (HIGH)
-6. Third-party chat widgets: Intercom, Drift, Tidio, HubSpot chat (HIGH)
-7. Non-HIPAA schedulers: Calendly, Acuity (non-HIPAA plan), Google Calendar embeds (HIGH)
-8. HIPAA-compliant tools detected: SimplePractice, TherapyNotes, Jane App — mark as PASS
-9. No privacy policy found (MEDIUM)
-10. Privacy policy without HIPAA/PHI mention (MEDIUM)
-11. Session recording tools: Hotjar, FullStory, Microsoft Clarity (HIGH)
+Severity guidelines:
+- ssl_tls: HIGH if not enforced
+- contact_form: HIGH if unprotected forms with no encryption notice or BAA disclosure
+- form_provider: HIGH if using Wufoo, Typeform, Google Forms, or Gravity Forms on non-HIPAA host
+- analytics_on_forms: HIGH if Google Analytics/GA4 found on pages with contact/intake forms
+- facebook_pixel: HIGH if Meta/Facebook pixel found on any page
+- chat_widgets: HIGH if Intercom, Drift, Tidio, or HubSpot chat found
+- scheduling_tools: HIGH if Calendly, Acuity (non-HIPAA plan), or Google Calendar embeds found
+- session_recording: HIGH if Hotjar, FullStory, or Microsoft Clarity found
+- hipaa_tools: PASS if SimplePractice, TherapyNotes, Jane App found; LOW if not found
+- privacy_policy: MEDIUM if no privacy policy found
+- privacy_policy_hipaa: MEDIUM if privacy policy exists but lacks HIPAA/PHI language
 
 Return your response as a JSON object with this exact structure:
 {
   "findings": [
     {
       "severity": "high|medium|low|pass",
-      "check": "short label",
+      "id": "check_id",
+      "check": "Check Label",
       "description": "what was detected",
       "pageUrl": "url",
       "whyRisk": "explanation",
@@ -192,7 +215,7 @@ Return your response as a JSON object with this exact structure:
   ]
 }
 
-Return ONLY the JSON object, no other text.
+Return ONLY the JSON object, no other text. You MUST include exactly ${REQUIRED_CHECKS.length} findings, one for each check ID.
 
 --- WEBSITE DATA ---
 ${pagesContent}`,
@@ -209,7 +232,26 @@ ${pagesContent}`,
       throw new Error('No JSON found in Claude response');
     }
     const parsed = JSON.parse(jsonMatch[0]) as { findings: HipaaFinding[] };
-    const findings = parsed.findings || [];
+    let findings = parsed.findings || [];
+
+    // Ensure every required check is present — fill in missing ones as "pass"
+    const returnedIds = new Set(findings.map((f: HipaaFinding & { id?: string }) => f.id));
+    for (const req of REQUIRED_CHECKS) {
+      if (!returnedIds.has(req.id)) {
+        findings.push({
+          severity: 'pass',
+          check: req.label,
+          description: req.passDesc,
+          pageUrl: '',
+          whyRisk: 'No issue detected.',
+          recommendedFix: 'No action needed.',
+        });
+      }
+    }
+
+    // Sort: high → medium → low → pass
+    const severityOrder = { high: 0, medium: 1, low: 2, pass: 3 };
+    findings = findings.sort((a: HipaaFinding, b: HipaaFinding) => severityOrder[a.severity] - severityOrder[b.severity]);
 
     // Calculate risk level
     const riskLevel = calculateRiskLevel(findings);
