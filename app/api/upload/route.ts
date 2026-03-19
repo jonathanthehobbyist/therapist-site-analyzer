@@ -31,6 +31,6 @@ export async function POST(req: NextRequest) {
   const filePath = path.join(dir, filename);
   await writeFile(filePath, buffer);
 
-  const url = `/uploads/${analysisId}/${filename}`;
+  const url = `/api/uploads?path=${encodeURIComponent(`${analysisId}/${filename}`)}`;
   return NextResponse.json({ url });
 }
