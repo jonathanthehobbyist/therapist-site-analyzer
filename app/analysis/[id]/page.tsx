@@ -353,7 +353,7 @@ export default function AnalysisPage() {
     },
     {
       section: 'Local Search',
-      label: 'Local Search',
+      label: analysis.customLocalSearchTitle || 'Local Search',
       sublabel: 'How clients find you',
     },
     {
@@ -623,9 +623,7 @@ export default function AnalysisPage() {
                 onSaveDescs={(updates) => setSectionDescs(prev => ({ ...prev, ...updates }))}
                 analysisId={id}
                 customTitle={analysis.customLocalSearchTitle}
-                customDesc={analysis.customLocalSearchDesc}
-                onCustomSave={(t, d) => setAnalysis(prev => prev ? { ...prev, customLocalSearchTitle: t, customLocalSearchDesc: d } : prev)}
-                templateTitle={sectionDescs.template_local_search_title}
+                onCustomSave={(t) => setAnalysis(prev => prev ? { ...prev, customLocalSearchTitle: t } : prev)}
                 templateDesc={sectionDescs.template_local_search_description}
                 mode={resolveMode('local_search', analysis)}
               />
@@ -2174,32 +2172,38 @@ const SEARCH_TREND_FALLBACK = [
   { month: 'Mar', volume: 823000 },
 ];
 
-function LocalSearchHero({ sectionDescs, onSaveDescs, analysisId, customTitle, customDesc, onCustomSave, templateTitle, templateDesc, mode }: {
+function LocalSearchHero({ sectionDescs, onSaveDescs, analysisId, customTitle, onCustomSave, templateDesc, mode }: {
   sectionDescs: Record<string, string>;
   onSaveDescs: (updates: Record<string, string>) => void;
   analysisId: string;
   customTitle: string | null;
-  customDesc: string | null;
-  onCustomSave: (title: string | null, desc: string | null) => void;
-  templateTitle?: string;
+  onCustomSave: (title: string | null) => void;
   templateDesc?: string;
   mode: 'default' | 'custom';
 }) {
-  const defaultTitle = sectionDescs.local_search_title || 'Local Search Visibility';
   const defaultDesc = sectionDescs.local_search_description || '';
-
-  const displayTitle = mode === 'custom' ? (templateTitle || defaultTitle) : defaultTitle;
+  const displayTitle = customTitle || 'Local Search';
   const displayDesc = mode === 'custom' ? (templateDesc || defaultDesc) : defaultDesc;
 
   const [editTitle, setEditTitle] = useState(displayTitle);
   const [editDesc, setEditDesc] = useState(displayDesc);
   const [editing, setEditing] = useState(false);
 
-  useEffect(() => { setEditTitle(displayTitle); setEditDesc(displayDesc); }, [mode, displayTitle, displayDesc]);
+  useEffect(() => { setEditTitle(displayTitle); }, [displayTitle]);
+  useEffect(() => { setEditDesc(displayDesc); }, [mode, displayDesc]);
 
   async function save() {
+    // Title saves per-analysis (like Overview)
+    await fetch(`/api/analysis/${analysisId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ customLocalSearchTitle: editTitle }),
+    });
+    onCustomSave(editTitle);
+
+    // Description saves globally
     if (mode === 'default') {
-      const updates = { local_search_title: editTitle, local_search_description: editDesc };
+      const updates = { local_search_description: editDesc };
       onSaveDescs(updates);
       await fetch('/api/settings', {
         method: 'PATCH',
@@ -2207,7 +2211,7 @@ function LocalSearchHero({ sectionDescs, onSaveDescs, analysisId, customTitle, c
         body: JSON.stringify(updates),
       });
     } else {
-      const updates = { template_local_search_title: editTitle, template_local_search_description: editDesc };
+      const updates = { template_local_search_description: editDesc };
       onSaveDescs(updates);
       await fetch('/api/settings', {
         method: 'PATCH',
@@ -2226,10 +2230,13 @@ function LocalSearchHero({ sectionDescs, onSaveDescs, analysisId, customTitle, c
             className="text-lg font-semibold text-brand-charcoal border border-gray-200 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-brand-sky w-full" />
           <textarea value={editDesc} onChange={(e) => setEditDesc(e.target.value)} rows={3}
             className="w-full text-sm text-gray-600 border border-gray-200 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-brand-sky resize-y" />
-          <div className="flex gap-2 justify-end">
-            <button onClick={() => { setEditTitle(displayTitle); setEditDesc(displayDesc); setEditing(false); }} className="px-3 py-1.5 text-xs text-gray-400 hover:text-gray-600">Cancel</button>
-            <button onClick={save}
-              className="px-3 py-1.5 text-xs font-medium bg-brand-charcoal-light text-white rounded-md hover:bg-brand-charcoal transition-colors">Save</button>
+          <div className="flex items-center justify-between mt-2">
+            <span className="text-[11px] text-gray-400">Title saves to this analysis; description saves globally</span>
+            <div className="flex gap-2">
+              <button onClick={() => { setEditTitle(displayTitle); setEditDesc(displayDesc); setEditing(false); }} className="px-3 py-1.5 text-xs text-gray-400 hover:text-gray-600">Cancel</button>
+              <button onClick={save}
+                className="px-3 py-1.5 text-xs font-medium bg-brand-charcoal-light text-white rounded-md hover:bg-brand-charcoal transition-colors">Save</button>
+            </div>
           </div>
         </div>
       ) : (
