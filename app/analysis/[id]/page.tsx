@@ -100,7 +100,7 @@ interface LocalSearchData {
   searchVolumeHistory?: { date: string; volume: number }[];
 }
 
-const SECTIONS = ['Overview', 'Local Search', 'SEO', 'Page Speed', 'HIPAA Audit', 'Opportunities'] as const;
+const SECTIONS = ['Overview', 'Local Search', 'SEO', 'Traffic by Page', 'Page Speed', 'HIPAA Audit', 'Opportunities'] as const;
 type Section = typeof SECTIONS[number];
 
 type SectionKey = 'seo' | 'pagespeed' | 'hipaa' | 'keywords' | 'local_search';
@@ -359,14 +359,20 @@ export default function AnalysisPage() {
     {
       section: 'SEO',
       label: 'Can Google Find Your Site?',
-      score: analysis.seoHygieneScore !== null ? `${analysis.seoHygieneScore}` : undefined,
+      score: analysis.seoHygieneScore !== null ? `${analysis.seoHygieneScore}/100` : undefined,
       scoreColor: scoreColor(analysis.seoHygieneScore, sectionDescs, 'seo'),
       sublabel: 'Hygiene & Comparison',
     },
     {
+      section: 'Traffic by Page',
+      label: 'Traffic by Page',
+      score: analysis.keywordData?.topPages?.length ? `${analysis.keywordData.topPages.length}` : undefined,
+      sublabel: 'Top pages & keywords',
+    },
+    {
       section: 'Page Speed',
       label: 'Website Loading Time',
-      score: mobileScore !== null ? `${mobileScore}` : undefined,
+      score: mobileScore !== null ? `${mobileScore}/100` : undefined,
       scoreColor: scoreColor(mobileScore, sectionDescs),
       sublabel: 'Core Web Vitals',
     },
@@ -426,7 +432,16 @@ export default function AnalysisPage() {
                 }`}>{item.label}</span>
                 {item.icon && <span className={activeSection === item.section ? 'text-brand-charcoal' : 'text-gray-400'}>{item.icon}</span>}
                 {item.score && (
-                  <span className={`text-sm font-bold ${item.scoreColor} ${activeSection === item.section ? 'bg-white rounded px-2 py-0.5 shadow-[0_1px_8px_-2px_rgba(0,0,0,0.10)]' : 'px-2 py-0.5'}`}>{item.score}</span>
+                  <span className={`text-sm ${activeSection === item.section ? 'bg-white rounded px-2 py-0.5 shadow-[0_1px_8px_-2px_rgba(0,0,0,0.10)]' : 'px-2 py-0.5'}`}>
+                    {item.score?.includes('/') ? (
+                      <>
+                        <span className={`font-bold ${item.scoreColor}`}>{item.score.split('/')[0]}</span>
+                        <span className="font-normal text-gray-400">/{item.score.split('/')[1]}</span>
+                      </>
+                    ) : (
+                      <span className={`font-bold ${item.scoreColor}`}>{item.score}</span>
+                    )}
+                  </span>
                 )}
               </div>
               {item.sublabel && (
@@ -529,6 +544,57 @@ export default function AnalysisPage() {
                 <div className="border-t border-gray-100 pt-6">
                   <h2 className="text-lg font-semibold text-brand-charcoal mb-4">SEO Comparison</h2>
                   <SeoComparisonTab data={analysis.seoComparisonData} />
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Traffic by Page section */}
+          {activeSection === 'Traffic by Page' && (
+            <div className="space-y-3">
+              {analysis.keywordData?.topPages && analysis.keywordData.topPages.length > 0 ? (
+                <div className="bg-white rounded-lg border border-gray-200 p-8">
+                  <h2 className="text-lg font-semibold text-brand-charcoal mb-1">Top Pages by Traffic</h2>
+                  <p className="text-sm text-gray-500 mb-5">Your highest-traffic pages and the keywords driving visitors to them.</p>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="text-left text-xs text-gray-500 border-b border-gray-100">
+                          <th className="pb-2 font-medium">Page</th>
+                          <th className="pb-2 font-medium text-right">Traffic</th>
+                          <th className="pb-2 font-medium text-right">Keywords</th>
+                          <th className="pb-2 font-medium text-right">UR</th>
+                          <th className="pb-2 font-medium text-right">Ref. Domains</th>
+                          <th className="pb-2 font-medium text-right">Top Keyword</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-50">
+                        {analysis.keywordData.topPages.map((page, i) => {
+                          let shortUrl: string;
+                          try { shortUrl = new URL(page.url).pathname || '/'; } catch { shortUrl = page.url; }
+                          return (
+                            <tr key={i}>
+                              <td className="py-3 font-medium text-brand-charcoal max-w-[180px] truncate" title={page.url}>{shortUrl}</td>
+                              <td className="py-3 text-right text-gray-600">{page.traffic.toLocaleString()}</td>
+                              <td className="py-3 text-right text-gray-600">{page.keywords.toLocaleString()}</td>
+                              <td className="py-3 text-right">
+                                <span className={`font-medium ${page.urlRating >= 20 ? 'text-brand-sage-dark' : page.urlRating >= 10 ? 'text-brand-gold' : 'text-gray-400'}`}>{page.urlRating}</span>
+                              </td>
+                              <td className="py-3 text-right text-gray-600">{page.referringDomains.toLocaleString()}</td>
+                              <td className="py-3 text-right text-xs max-w-[160px] truncate" title={`${page.topKeyword} (${page.topKeywordVolume.toLocaleString()} vol/mo)`}>
+                                <span className="text-gray-600">{page.topKeyword}</span>
+                                <span className="text-gray-400 ml-1">#{page.topKeywordPosition}</span>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              ) : (
+                <div className="bg-white rounded-lg border border-gray-200 p-12 text-center">
+                  <p className="text-gray-500 text-sm">No page traffic data available yet. This usually means the site is new or has very low traffic.</p>
                 </div>
               )}
             </div>
