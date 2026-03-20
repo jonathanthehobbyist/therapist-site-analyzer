@@ -695,30 +695,6 @@ function ShareKeywordsTab({ data, sectionDescs }: { data: KeywordData; sectionDe
         </div>
       )}
 
-      {data.organicKeywords.length > 0 && (
-        <div className="bg-white rounded-lg border border-gray-200 p-8">
-          <h2 className="text-lg font-semibold text-brand-charcoal mb-2">Organic Keywords</h2>
-          <p className="text-sm text-gray-500 mb-5">Keywords your site ranks for in Google, sorted by traffic.</p>
-          <table className="w-full text-sm">
-            <thead><tr className="text-left text-xs text-gray-500 border-b border-gray-100">
-              <th className="pb-2 font-medium">Keyword</th><th className="pb-2 font-medium text-right">Position</th>
-              <th className="pb-2 font-medium text-right">Volume</th><th className="pb-2 font-medium text-right">Traffic</th>
-              <th className="pb-2 font-medium text-right">KD</th>
-            </tr></thead>
-            <tbody className="divide-y divide-gray-50">
-              {data.organicKeywords.map((kw, i) => (
-                <tr key={i}>
-                  <td className="py-3 font-medium text-brand-charcoal">{kw.keyword}</td>
-                  <td className="py-3 text-right text-gray-600">#{kw.position}</td>
-                  <td className="py-3 text-right text-gray-600">{kw.volume.toLocaleString()}</td>
-                  <td className="py-3 text-right text-gray-600">{kw.traffic.toLocaleString()}</td>
-                  <td className={`py-3 text-right font-medium ${kwDifficultyColor(kw.difficulty, sectionDescs)}`}>{kw.difficulty}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
     </div>
   );
 }
