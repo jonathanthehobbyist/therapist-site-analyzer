@@ -40,6 +40,15 @@ export async function GET(
     keywordData: analysis.keywordData
       ? JSON.parse(analysis.keywordData)
       : null,
+    pageSpeedData: analysis.pageSpeedData
+      ? JSON.parse(analysis.pageSpeedData)
+      : null,
+    localSearchData: analysis.localSearchData
+      ? JSON.parse(analysis.localSearchData)
+      : null,
+    sectionModes: analysis.sectionModes
+      ? JSON.parse(analysis.sectionModes)
+      : null,
   });
 }
 
