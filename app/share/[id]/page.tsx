@@ -377,8 +377,15 @@ export default function SharePage() {
                   </div>
                 </div>
               ) : (
-                <div className="bg-white rounded-lg border border-gray-200 p-12 text-center">
-                  <p className="text-gray-500 text-sm">No page traffic data available yet.</p>
+                <div className="bg-white rounded-lg border border-brand-rose/30 p-10">
+                  <div className="flex items-start gap-4">
+                    <span className="text-xs font-semibold px-2.5 py-1 rounded bg-white border border-brand-rose text-brand-rose shrink-0 mt-0.5">High Concern</span>
+                    <div>
+                      <p className="text-sm font-medium text-brand-charcoal">No pages are generating organic traffic</p>
+                      <p className="text-sm text-gray-500 mt-1 leading-relaxed">Major SEO tools aren&apos;t detecting any meaningful traffic to your website from Google search. This is common for newer sites, but it means potential clients searching for therapy in your area are unlikely to find you online.</p>
+                      <p className="text-sm text-gray-500 mt-2 leading-relaxed">A targeted SEO strategy focusing on local keywords and content can change this significantly.</p>
+                    </div>
+                  </div>
                 </div>
               )}
             </div>
@@ -662,8 +669,37 @@ function SharePageSpeedTab({ data, sectionDescs }: { data: FullPageSpeedData; se
 // ── Keywords Tab ──
 
 function ShareKeywordsTab({ data, sectionDescs }: { data: KeywordData; sectionDescs: Record<string, string> }) {
+  const hasStriking = data.strikingDistanceKeywords && data.strikingDistanceKeywords.length > 0;
+  const hasAny = hasStriking || data.organicKeywords.length > 0 || data.siteKeywords.length > 0;
+
   return (
     <div className="space-y-3">
+      {!hasAny && (
+        <div className="bg-white rounded-lg border border-brand-rose/30 p-10">
+          <div className="flex items-start gap-4">
+            <span className="text-xs font-semibold px-2.5 py-1 rounded bg-white border border-brand-rose text-brand-rose shrink-0 mt-0.5">High Concern</span>
+            <div>
+              <p className="text-sm font-medium text-brand-charcoal">No keyword or ranking data found</p>
+              <p className="text-sm text-gray-500 mt-1 leading-relaxed">Your site doesn&apos;t appear to rank for any keywords in Google search results. This means potential clients searching for therapy services in your area are very unlikely to find your practice through Google.</p>
+              <p className="text-sm text-gray-500 mt-2 leading-relaxed">Building a keyword strategy around your specialties and location is the highest-impact step you can take to grow your practice online.</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {!hasStriking && hasAny && (
+        <div className="bg-white rounded-lg border border-brand-gold/30 p-10">
+          <div className="flex items-start gap-4">
+            <span className="text-xs font-semibold px-2.5 py-1 rounded bg-white border border-brand-gold text-brand-gold shrink-0 mt-0.5">Medium Concern</span>
+            <div>
+              <p className="text-sm font-medium text-brand-charcoal">No keywords close to page 1</p>
+              <p className="text-sm text-gray-500 mt-1 leading-relaxed">Your site has some keyword presence, but none are ranking in positions 3–10 — the &ldquo;striking distance&rdquo; range where small improvements can move you to the top of Google&apos;s first page.</p>
+              <p className="text-sm text-gray-500 mt-2 leading-relaxed">Focusing your content on the keywords you already rank for can help push them into this range.</p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {data.strikingDistanceKeywords && data.strikingDistanceKeywords.length > 0 && (
         <div className="bg-white rounded-lg border border-gray-200 p-8">
           <h2 className="text-lg font-semibold text-brand-charcoal mb-1">{sectionDescs.opportunities_striking_title || 'Low-Hanging Fruit'}</h2>
