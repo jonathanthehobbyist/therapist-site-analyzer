@@ -289,12 +289,6 @@ export default function SharePage() {
                   </div>
                 )}
               </div>
-              {analysis.seoSummary && (
-                <div className="bg-white rounded-lg border border-gray-200 p-8">
-                  <h2 className="text-lg font-semibold text-brand-charcoal mb-3">Summary</h2>
-                  <p className="text-sm text-gray-600 whitespace-pre-line leading-relaxed">{analysis.seoSummary}</p>
-                </div>
-              )}
             </div>
           )}
 
