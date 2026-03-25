@@ -125,7 +125,7 @@ export default function HistoryPage() {
                   <td className="px-5 py-4 text-brand-charcoal">
                     {a.hipaaRiskLevel || '\u2014'}
                   </td>
-                  <td className="px-5 py-4 text-brand-charcoal">
+                  <td className="px-5 py-4 text-brand-charcoal whitespace-nowrap">
                     {a.isPublic ? a.shareViews : 'Not shared'}
                   </td>
                   <td className="px-5 py-4 text-brand-charcoal capitalize">
