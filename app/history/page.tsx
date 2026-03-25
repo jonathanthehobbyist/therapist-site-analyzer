@@ -113,46 +113,26 @@ export default function HistoryPage() {
                       <p className="text-xs text-gray-400 mt-0.5">{a.site.label}</p>
                     )}
                   </td>
-                  <td className="px-5 py-4 text-gray-500">
+                  <td className="px-5 py-4 text-brand-charcoal">
                     {new Date(a.createdAt).toLocaleDateString()}
                   </td>
-                  <td className="px-5 py-4">
-                    {a.seoComparisonScore !== null ? (
-                      <span className={`font-semibold ${a.seoComparisonScore < 60 ? 'text-brand-red' : 'text-brand-orange'}`}>{a.seoComparisonScore}/100</span>
-                    ) : '\u2014'}
+                  <td className="px-5 py-4 text-brand-charcoal">
+                    {a.seoComparisonScore !== null ? `${a.seoComparisonScore}/100` : '\u2014'}
                   </td>
-                  <td className="px-5 py-4">
-                    {a.seoHygieneScore !== null ? (
-                      <span className={`font-semibold ${a.seoHygieneScore < 60 ? 'text-brand-red' : 'text-brand-orange'}`}>{a.seoHygieneScore}/100</span>
-                    ) : '\u2014'}
+                  <td className="px-5 py-4 text-brand-charcoal">
+                    {a.seoHygieneScore !== null ? `${a.seoHygieneScore}/100` : '\u2014'}
                   </td>
-                  <td className="px-5 py-4">
-                    {a.hipaaRiskLevel ? (
-                      <span className={`text-xs font-semibold px-2.5 py-1 rounded-lg ${RISK_COLORS[a.hipaaRiskLevel] || 'bg-gray-100'}`}>
-                        {a.hipaaRiskLevel}
-                      </span>
-                    ) : (
-                      '\u2014'
-                    )}
+                  <td className="px-5 py-4 text-brand-charcoal">
+                    {a.hipaaRiskLevel || '\u2014'}
                   </td>
-                  <td className="px-5 py-4">
-                    {a.isPublic ? (
-                      <span className={`text-xs ${a.shareViews > 0 ? 'font-semibold text-brand-sage-dark' : 'text-gray-400'}`}>{a.shareViews}</span>
-                    ) : (
-                      <span className="text-xs text-gray-300">Not shared</span>
-                    )}
+                  <td className="px-5 py-4 text-brand-charcoal">
+                    {a.isPublic ? a.shareViews : 'Not shared'}
                   </td>
-                  <td className="px-5 py-4">
-                    <span className={`text-xs capitalize ${
-                      a.status === 'complete' ? 'text-brand-charcoal' :
-                      a.status === 'error' ? 'text-brand-rose' :
-                      'text-brand-gold'
-                    }`}>
-                      {a.status}
-                    </span>
+                  <td className="px-5 py-4 text-brand-charcoal capitalize">
+                    {a.status}
                   </td>
                   <td className="px-5 py-4 text-right">
-                    <a href={`/analysis/${a.id}`} className="text-sm text-gray-400 hover:text-brand-charcoal transition-colors">
+                    <a href={`/analysis/${a.id}`} className="text-sm text-brand-sky hover:text-brand-sky-vivid transition-colors">
                       View
                     </a>
                   </td>
