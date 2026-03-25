@@ -172,6 +172,9 @@ export default function SharePage() {
     loadAnalysis();
   }
 
+  // Track analytics (must be before early returns to satisfy rules of hooks)
+  useShareAnalytics(analysis ? id : null, activeSection);
+
   // ── Passcode gate ──
   if (needsPasscode) {
     return (
@@ -203,10 +206,7 @@ export default function SharePage() {
   if (error) return <div className="min-h-screen bg-brand-bg flex items-center justify-center"><div className="bg-white rounded-lg shadow-sm p-14 text-center max-w-md"><p className="text-red-500 mb-4">{error}</p><p className="text-sm text-gray-400">This report may not exist or is no longer shared.</p></div></div>;
   if (!analysis) return <div className="min-h-screen bg-brand-bg flex items-center justify-center"><p className="text-gray-400">Loading report...</p></div>;
 
-  // Track analytics
-  useShareAnalytics(id, activeSection);
-
-  const mobileScore = analysis.pageSpeedData?.mobile?.performanceScore ?? null;
+  const mobileScore = analysis?.pageSpeedData?.mobile?.performanceScore ?? null;
   const hasComparison = analysis.seoComparisonData !== null;
 
   const sidebarItems: { section: Section; label: string; score?: string; scoreColor?: string; sublabel?: string }[] = [
