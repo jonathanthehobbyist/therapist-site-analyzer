@@ -12,6 +12,8 @@ interface AnalysisSummary {
   seoHygieneScore: number | null;
   hipaaRiskLevel: string | null;
   site: { label: string | null } | null;
+  isPublic: boolean;
+  shareViews: number;
 }
 
 const RISK_COLORS: Record<string, string> = {
@@ -97,6 +99,7 @@ export default function HistoryPage() {
                 <th className="text-left px-5 py-3.5 font-medium text-gray-500 text-xs">SEO Score</th>
                 <th className="text-left px-5 py-3.5 font-medium text-gray-500 text-xs">Hygiene</th>
                 <th className="text-left px-5 py-3.5 font-medium text-gray-500 text-xs">HIPAA</th>
+                <th className="text-left px-5 py-3.5 font-medium text-gray-500 text-xs">Opened</th>
                 <th className="text-left px-5 py-3.5 font-medium text-gray-500 text-xs">Status</th>
                 <th className="px-5 py-3.5"></th>
               </tr>
@@ -130,6 +133,17 @@ export default function HistoryPage() {
                       </span>
                     ) : (
                       '\u2014'
+                    )}
+                  </td>
+                  <td className="px-5 py-4">
+                    {a.isPublic ? (
+                      a.shareViews > 0 ? (
+                        <span className="text-xs font-semibold text-brand-sage-dark">{a.shareViews} view{a.shareViews !== 1 ? 's' : ''}</span>
+                      ) : (
+                        <span className="text-xs text-gray-400">Shared, not opened</span>
+                      )
+                    ) : (
+                      <span className="text-xs text-gray-300">&mdash;</span>
                     )}
                   </td>
                   <td className="px-5 py-4">

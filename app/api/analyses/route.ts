@@ -29,8 +29,13 @@ export async function GET() {
       hipaaRiskLevel: true,
       isPublic: true,
       site: { select: { id: true, url: true, label: true } },
+      _count: { select: { pageViews: true } },
     },
   });
 
-  return NextResponse.json(analyses);
+  return NextResponse.json(analyses.map(a => ({
+    ...a,
+    shareViews: a._count.pageViews,
+    _count: undefined,
+  })));
 }
