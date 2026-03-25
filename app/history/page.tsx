@@ -137,13 +137,9 @@ export default function HistoryPage() {
                   </td>
                   <td className="px-5 py-4">
                     {a.isPublic ? (
-                      a.shareViews > 0 ? (
-                        <span className="text-xs font-semibold text-brand-sage-dark">{a.shareViews} view{a.shareViews !== 1 ? 's' : ''}</span>
-                      ) : (
-                        <span className="text-xs text-gray-400">Shared, not opened</span>
-                      )
+                      <span className={`text-xs ${a.shareViews > 0 ? 'font-semibold text-brand-sage-dark' : 'text-gray-400'}`}>{a.shareViews}</span>
                     ) : (
-                      <span className="text-xs text-gray-300">&mdash;</span>
+                      <span className="text-xs text-gray-300">Not shared</span>
                     )}
                   </td>
                   <td className="px-5 py-4">
