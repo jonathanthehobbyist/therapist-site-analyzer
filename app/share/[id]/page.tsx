@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useParams } from 'next/navigation';
 import { PieChart, Pie, Cell, ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip } from 'recharts';
+import { useShareAnalytics } from '@/lib/useShareAnalytics';
 
 // ── Types ──
 
@@ -201,6 +202,9 @@ export default function SharePage() {
 
   if (error) return <div className="min-h-screen bg-brand-bg flex items-center justify-center"><div className="bg-white rounded-lg shadow-sm p-14 text-center max-w-md"><p className="text-red-500 mb-4">{error}</p><p className="text-sm text-gray-400">This report may not exist or is no longer shared.</p></div></div>;
   if (!analysis) return <div className="min-h-screen bg-brand-bg flex items-center justify-center"><p className="text-gray-400">Loading report...</p></div>;
+
+  // Track analytics
+  useShareAnalytics(id, activeSection);
 
   const mobileScore = analysis.pageSpeedData?.mobile?.performanceScore ?? null;
   const hasComparison = analysis.seoComparisonData !== null;

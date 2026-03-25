@@ -46,6 +46,30 @@ model Analysis {
   pageSpeedData      String?
   site               Site?    @relation(fields: [siteId], references: [id])
   siteId             String?
+  pageViews          SharePageView[]
+}
+
+model SharePageView {
+  id              String   @id @default(cuid())
+  analysisId      String
+  analysis        Analysis @relation(fields: [analysisId], references: [id])
+  sessionId       String
+  referrer        String?
+  deviceType      String
+  userAgent       String?
+  startedAt       DateTime @default(now())
+  endedAt         DateTime?
+  totalDurationMs Int?
+  sectionViews    ShareSectionView[]
+}
+
+model ShareSectionView {
+  id          String        @id @default(cuid())
+  pageViewId  String
+  pageView    SharePageView @relation(fields: [pageViewId], references: [id])
+  section     String
+  durationMs  Int
+  viewOrder   Int
 }
 
 model Setting {

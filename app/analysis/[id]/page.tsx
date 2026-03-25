@@ -488,6 +488,7 @@ export default function AnalysisPage() {
                   {rerunning ? 'Re-running...' : 'Re-run Analysis'}
                 </button>
               </div>
+              {isShared && <ShareAnalyticsPanel analysisId={id} />}
             </div>
           )}
 
@@ -1515,6 +1516,107 @@ function ShareToggle({ analysisId, isPublic: initialPublic, passcode: initialPas
           )}
         </div>
       )}
+    </div>
+  );
+}
+
+function ShareAnalyticsPanel({ analysisId }: { analysisId: string }) {
+  const [data, setData] = useState<{
+    totalViews: number;
+    avgDurationMs: number | null;
+    mobileCount: number;
+    desktopCount: number;
+    sections: { section: string; views: number; avgDurationMs: number }[];
+    referrers: { domain: string; count: number }[];
+    recentViews: { id: string; startedAt: string; deviceType: string; totalDurationMs: number | null; referrer: string | null; sectionsViewed: number }[];
+  } | null>(null);
+
+  useEffect(() => {
+    fetch(`/api/analysis/${analysisId}/analytics`)
+      .then((r) => r.json())
+      .then(setData)
+      .catch(() => {});
+  }, [analysisId]);
+
+  if (!data || data.totalViews === 0) {
+    return (
+      <div className="bg-white rounded-lg border border-gray-200 p-6">
+        <h3 className="text-sm font-semibold text-gray-900 mb-1">Share Analytics</h3>
+        <p className="text-xs text-gray-400">No visits yet. Analytics will appear once someone opens the share link.</p>
+      </div>
+    );
+  }
+
+  function fmtDuration(ms: number | null): string {
+    if (!ms) return '—';
+    if (ms < 1000) return `${ms}ms`;
+    const s = Math.round(ms / 1000);
+    if (s < 60) return `${s}s`;
+    const m = Math.floor(s / 60);
+    return `${m}m ${s % 60}s`;
+  }
+
+  return (
+    <div className="bg-white rounded-lg border border-gray-200 p-6">
+      <h3 className="text-sm font-semibold text-gray-900 mb-4">Share Analytics</h3>
+
+      {/* Summary stats */}
+      <div className="grid grid-cols-3 gap-4 mb-5">
+        <div>
+          <p className="text-2xl font-bold text-brand-charcoal">{data.totalViews}</p>
+          <p className="text-xs text-gray-400">Total Views</p>
+        </div>
+        <div>
+          <p className="text-2xl font-bold text-brand-charcoal">{fmtDuration(data.avgDurationMs)}</p>
+          <p className="text-xs text-gray-400">Avg. Time</p>
+        </div>
+        <div>
+          <p className="text-2xl font-bold text-brand-charcoal">
+            {data.totalViews > 0 ? `${Math.round((data.mobileCount / data.totalViews) * 100)}%` : '—'}
+          </p>
+          <p className="text-xs text-gray-400">Mobile</p>
+        </div>
+      </div>
+
+      {/* Section engagement */}
+      {data.sections.length > 0 && (
+        <div className="mb-5">
+          <p className="text-xs font-medium text-gray-600 mb-2">Section Engagement</p>
+          <div className="space-y-1.5">
+            {data.sections.map((s) => {
+              const maxViews = data!.sections[0].views;
+              const pct = maxViews > 0 ? (s.views / maxViews) * 100 : 0;
+              return (
+                <div key={s.section} className="flex items-center gap-3">
+                  <span className="text-xs text-gray-600 w-28 shrink-0 truncate">{s.section}</span>
+                  <div className="flex-1 bg-gray-100 rounded-full h-2">
+                    <div className="bg-brand-sage h-2 rounded-full" style={{ width: `${pct}%` }} />
+                  </div>
+                  <span className="text-xs text-gray-400 w-16 text-right shrink-0">{s.views} · {fmtDuration(s.avgDurationMs)}</span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Recent views */}
+      <div>
+        <p className="text-xs font-medium text-gray-600 mb-2">Recent Visits</p>
+        <div className="space-y-1">
+          {data.recentViews.slice(0, 10).map((v) => (
+            <div key={v.id} className="flex items-center gap-3 text-xs text-gray-500 py-1">
+              <span className="shrink-0">{v.deviceType === 'mobile' ? '📱' : '💻'}</span>
+              <span className="flex-1">
+                {new Date(v.startedAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}{' '}
+                {new Date(v.startedAt).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}
+              </span>
+              <span className="shrink-0">{fmtDuration(v.totalDurationMs)}</span>
+              <span className="shrink-0 text-gray-400">{v.sectionsViewed} sections</span>
+            </div>
+          ))}
+        </div>
+      </div>
     </div>
   );
 }
