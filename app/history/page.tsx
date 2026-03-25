@@ -96,8 +96,7 @@ export default function HistoryPage() {
               <tr>
                 <th className="text-left px-5 py-3.5 font-medium text-gray-500 text-xs">Site</th>
                 <th className="text-left px-5 py-3.5 font-medium text-gray-500 text-xs">Date</th>
-                <th className="text-left px-5 py-3.5 font-medium text-gray-500 text-xs">SEO Score</th>
-                <th className="text-left px-5 py-3.5 font-medium text-gray-500 text-xs">Hygiene</th>
+                <th className="text-left px-5 py-3.5 font-medium text-gray-500 text-xs whitespace-nowrap">SEO Score</th>
                 <th className="text-left px-5 py-3.5 font-medium text-gray-500 text-xs">HIPAA</th>
                 <th className="text-left px-5 py-3.5 font-medium text-gray-500 text-xs">Opened</th>
                 <th className="text-left px-5 py-3.5 font-medium text-gray-500 text-xs">Status</th>
@@ -115,9 +114,6 @@ export default function HistoryPage() {
                   </td>
                   <td className="px-5 py-4 text-brand-charcoal">
                     {new Date(a.createdAt).toLocaleDateString()}
-                  </td>
-                  <td className="px-5 py-4 text-brand-charcoal">
-                    {a.seoComparisonScore !== null ? `${a.seoComparisonScore}/100` : '\u2014'}
                   </td>
                   <td className="px-5 py-4 text-brand-charcoal">
                     {a.seoHygieneScore !== null ? `${a.seoHygieneScore}/100` : '\u2014'}
