@@ -72,6 +72,16 @@ model ShareSectionView {
   viewOrder   Int
 }
 
+model IntakeSubmission {
+  id         String   @id @default(cuid())
+  createdAt  DateTime @default(now())
+  siteUrl    String
+  email      String
+  status     String   @default("pending") // pending | approved | rejected
+  ipAddress  String
+  analysisId String?
+}
+
 model Setting {
   key   String @id
   value String
