@@ -6,7 +6,7 @@ export default function Nav() {
   const pathname = usePathname();
   const router = useRouter();
 
-  if (pathname.startsWith('/share/') || pathname === '/login') return null;
+  if (pathname.startsWith('/share/') || pathname === '/login' || pathname === '/intake') return null;
 
   async function handleLogout() {
     await fetch('/api/auth/logout', { method: 'POST' });
@@ -30,6 +30,12 @@ export default function Nav() {
             className="text-xs text-gray-500 hover:text-brand-charcoal transition-colors"
           >
             History
+          </a>
+          <a
+            href="/intake-admin"
+            className="text-xs text-gray-500 hover:text-brand-charcoal transition-colors"
+          >
+            Intake
           </a>
           <a
             href="/settings"
